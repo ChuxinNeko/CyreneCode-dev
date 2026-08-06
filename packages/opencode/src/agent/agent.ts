@@ -14,6 +14,12 @@ import PROMPT_COMPACTION from "./prompt/compaction.txt"
 import PROMPT_EXPLORE from "./prompt/explore.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
+import PROMPT_COMMON from "../session/prompt/modes/common_prefix.md"
+import PROMPT_ASK from "../session/prompt/modes/ask/prompt.md"
+import PROMPT_PLAN from "../session/prompt/modes/plan/prompt.md"
+import PROMPT_AGENT from "../session/prompt/modes/agent/prompt.md"
+import PROMPT_DEBUG from "../session/prompt/modes/debug/prompt.md"
+import PROMPT_MULTITASK from "../session/prompt/modes/multitask/prompt.md"
 import { Permission } from "@/permission"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
 import { Global } from "@opencode-ai/core/global"
@@ -60,6 +66,16 @@ const GeneratedAgent = Schema.Struct({
   whenToUse: Schema.String,
   systemPrompt: Schema.String,
 })
+
+// 工作模式提示词：common_prefix + 各模式 prompt，debug 例外（复用其自带完整 prompt，不加前缀）。
+// 拼接规则见 src/session/prompt/modes/README.md。{{FAKE_MODEL_ID}} 占位符在 llm/request.ts 运行时替换。
+const READ_PROMPT = {
+  ask: `${PROMPT_COMMON}\n\n${PROMPT_ASK}`,
+  plan: `${PROMPT_COMMON}\n\n${PROMPT_PLAN}`,
+  agent: `${PROMPT_COMMON}\n\n${PROMPT_AGENT}`,
+  multitask: `${PROMPT_COMMON}\n\n${PROMPT_MULTITASK}`,
+  debug: PROMPT_DEBUG,
+} satisfies Record<string, string>
 
 export interface Interface {
   readonly get: (agent: string) => Effect.Effect<Info>
@@ -137,21 +153,41 @@ const layer = Layer.effect(
 
         const user = Permission.fromConfig(cfg.permission ?? {})
 
+        // 写代码类模式（agent / debug / multitask，以及默认 build）共用的宽松权限。
+        const codingPermission = Permission.merge(
+          defaults,
+          Permission.fromConfig({
+            question: "allow",
+            plan_enter: "allow",
+          }),
+          user,
+        )
+
         const agents: Record<string, Info> = {
           build: {
             name: "build",
             description: "The default agent. Executes tools based on configured permissions.",
             options: {},
+            permission: codingPermission,
+            mode: "primary",
+            native: true,
+          },
+          ask: {
+            name: "ask",
+            description: "Ask mode. Read-only Q&A — answers questions and never edits files.",
+            options: {},
             permission: Permission.merge(
               defaults,
               Permission.fromConfig({
-                question: "allow",
-                plan_enter: "allow",
+                // edit 规则归一化覆盖 edit/write/apply_patch；question/plan 已由 defaults 置 deny。
+                edit: { "*": "deny" },
+                todowrite: "deny",
               }),
               user,
             ),
             mode: "primary",
             native: true,
+            prompt: READ_PROMPT.ask,
           },
           plan: {
             name: "plan",
@@ -178,6 +214,34 @@ const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
+            prompt: READ_PROMPT.plan,
+          },
+          agent: {
+            name: "agent",
+            description: "Agent mode. Default coding agent that edits files and runs tools.",
+            options: {},
+            permission: codingPermission,
+            mode: "primary",
+            native: true,
+            prompt: READ_PROMPT.agent,
+          },
+          debug: {
+            name: "debug",
+            description: "Debug mode. Investigates root causes, fixes, and verifies.",
+            options: {},
+            permission: codingPermission,
+            mode: "primary",
+            native: true,
+            prompt: READ_PROMPT.debug,
+          },
+          multitask: {
+            name: "multitask",
+            description: "Multitask mode. Coordinates and delegates work to worker agents.",
+            options: {},
+            permission: codingPermission,
+            mode: "primary",
+            native: true,
+            prompt: READ_PROMPT.multitask,
           },
           general: {
             name: "general",

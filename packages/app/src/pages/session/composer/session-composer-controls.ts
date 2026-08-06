@@ -8,6 +8,7 @@ import { useDirectoryPicker } from "@/components/directory-picker"
 import { useGlobal } from "@/context/global"
 import { useLayout } from "@/context/layout"
 import { useLocal, type ModelSelection } from "@/context/local"
+import { WORK_MODES } from "@/context/local-agent"
 import type { QueryOptionsApi } from "@/context/server-sync"
 import { useServerSDK } from "@/context/server-sdk"
 import { serverName, ServerConnection, useServer } from "@/context/server"
@@ -16,6 +17,14 @@ import { useSync } from "@/context/sync"
 import { useTabs } from "@/context/tabs"
 import { useProviders } from "@/hooks/use-providers"
 import { pathKey } from "@/utils/path-key"
+
+function workModeOptions(agents: { name: string }[], current: string | undefined): string[] {
+  const available = new Set(agents.map((a) => a.name))
+  const modes = WORK_MODES.filter((m) => available.has(m))
+  // 若当前值不在固定模式里（如 build 或自定义 agent），追加它，避免胶囊无可选项。
+  if (current && !WORK_MODES.includes(current as (typeof WORK_MODES)[number])) modes.push(current)
+  return modes
+}
 
 export function createPromptInputController(input: {
   sessionKey: Accessor<string>
@@ -37,7 +46,7 @@ export function createPromptInputController(input: {
     return {
       agents: {
         available: sync().data.agent,
-        options: local.agent.list().map((agent) => agent.name),
+        options: workModeOptions(local.agent.list(), local.agent.current()?.name),
         current: local.agent.current()?.name ?? "",
         loading: agentsQuery.isLoading,
         visible: local.agent.visible(),

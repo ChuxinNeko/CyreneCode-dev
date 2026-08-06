@@ -43,7 +43,14 @@ export async function mockOpenCodeServer(page: Page, config: MockServerConfig) {
     },
     "/project": [config.project],
     "/project/current": config.project,
-    "/agent": [{ name: "build", mode: "primary" }],
+    "/agent": [
+      { name: "build", mode: "primary" },
+      { name: "ask", mode: "primary" },
+      { name: "agent", mode: "primary" },
+      { name: "plan", mode: "primary" },
+      { name: "debug", mode: "primary" },
+      { name: "multitask", mode: "primary" },
+    ],
     "/vcs": { branch: "main", default_branch: "main" },
     "/session": config.sessions,
   }
@@ -124,14 +131,12 @@ export async function mockOpenCodeServer(page: Page, config: MockServerConfig) {
       return json(route, {
         location: location(config),
         data: [
-          {
-            id: "build",
-            name: "Build",
-            mode: "primary",
-            hidden: false,
-            request: { settings: {}, headers: {}, body: {} },
-            permissions: [],
-          },
+          { id: "build", name: "Build", mode: "primary", hidden: false, request: { settings: {}, headers: {}, body: {} }, permissions: [] },
+          { id: "ask", name: "ask", mode: "primary", hidden: false, request: { settings: {}, headers: {}, body: {} }, permissions: [] },
+          { id: "agent", name: "agent", mode: "primary", hidden: false, request: { settings: {}, headers: {}, body: {} }, permissions: [] },
+          { id: "plan", name: "plan", mode: "primary", hidden: false, request: { settings: {}, headers: {}, body: {} }, permissions: [] },
+          { id: "debug", name: "debug", mode: "primary", hidden: false, request: { settings: {}, headers: {}, body: {} }, permissions: [] },
+          { id: "multitask", name: "multitask", mode: "primary", hidden: false, request: { settings: {}, headers: {}, body: {} }, permissions: [] },
         ],
       })
     if (path === "/api/command") return json(route, { location: location(config), data: [] })

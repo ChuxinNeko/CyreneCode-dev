@@ -105,7 +105,7 @@ function FetchModelsMenu(props: {
       placement="top-start"
       gutter={4}
     >
-      <Kobalte.Trigger as={(triggerProps) => props.trigger(triggerProps)} />
+      <Kobalte.Trigger as={(triggerProps: ModelFetchTriggerProps) => props.trigger(triggerProps)} />
       <Kobalte.Portal>
         <Kobalte.Content class="z-50 w-64 max-h-72 min-w-0 overflow-auto rounded-md border border-border-base bg-surface-raised-stronger-non-alpha p-1 shadow-md outline-none">
           <Kobalte.Title class="sr-only">{language.t("provider.custom.models.fetch")}</Kobalte.Title>
@@ -222,7 +222,7 @@ export function CustomProviderForm(props: { autofocus?: boolean } = {}) {
     setForm("err", key, undefined)
   }
 
-  const setModel = (index: number, key: "id" | "name", value: string) => {
+  const setModel = (index: number, key: "id" | "name" | "context", value: string) => {
     batch(() => {
       setForm("models", index, key, value)
       setForm("models", index, "err", key, undefined)
@@ -376,12 +376,23 @@ export function CustomProviderForm(props: { autofocus?: boolean } = {}) {
                     error={m.err.name}
                   />
                 </div>
+                <div class="w-32 shrink-0">
+                  <TextField
+                    label={language.t("provider.custom.models.context.label")}
+                    hideLabel
+                    placeholder={language.t("provider.custom.models.context.placeholder")}
+                    value={m.context}
+                    onChange={(v) => setModel(i(), "context", v)}
+                    validationState={m.err.context ? "invalid" : undefined}
+                    error={m.err.context}
+                  />
+                </div>
                 <div class="flex flex-col gap-1.5">
                   <FetchModelsMenu
                     baseURL={() => form.baseURL}
                     apiKey={() => form.apiKey}
                     onSelect={(id) => setModel(i(), "id", id)}
-                    trigger={(triggerProps) => (
+                    trigger={(triggerProps: ModelFetchTriggerProps) => (
                       <Button
                         {...triggerProps}
                         type="button"

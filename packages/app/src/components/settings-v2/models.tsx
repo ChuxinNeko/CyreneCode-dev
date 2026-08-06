@@ -1,16 +1,21 @@
 import { useFilteredList } from "@opencode-ai/ui/hooks"
+import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
+import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
 import { Switch } from "@opencode-ai/ui/v2/switch-v2"
 import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
 import { IconButtonV2 } from "@opencode-ai/ui/v2/icon-button-v2"
 import { TextInputV2 } from "@opencode-ai/ui/v2/text-input-v2"
-import { type Component, For, Show } from "solid-js"
+import { type Accessor, type Component, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLanguage } from "@/context/language"
 import { useModels } from "@/context/models"
-import { useServerSDK } from "@/context/server-sdk"
+import { useServerProtocol, useServerSDK } from "@/context/server-sdk"
+import { useServerSync } from "@/context/server-sync"
 import { popularProviders } from "@/hooks/use-providers"
 import { Persist, persisted } from "@/utils/persist"
+import { showToast } from "@/utils/toast"
+import { DialogAddModel } from "../dialog-add-model"
 import { SettingsListV2 } from "./parts/list"
 import { SettingsRowV2 } from "./parts/row"
 import "./settings-v2.css"
@@ -19,14 +24,86 @@ type ModelItem = ReturnType<ReturnType<typeof useModels>["list"]>[number]
 
 const PROVIDER_ICON_SIZE = 16
 
-export const SettingsModelsV2: Component = () => {
+export const SettingsModelsV2: Component<{ directory?: Accessor<string | undefined> }> = (props) => {
   const language = useLanguage()
+  const dialog = useDialog()
   const models = useModels()
   const serverSdk = useServerSDK()
+  const protocol = useServerProtocol()
+  const serverSync = useServerSync()
   const [store, setStore] = persisted(
     Persist.serverGlobal(serverSdk().scope, "settings-v2.models.providers"),
     createStore({ collapsed: {} as Record<string, boolean> }),
   )
+
+  // 自定义提供商（OpenAI 兼容）的模型定义在 config 中，可追加 / 断开。
+  const isConfigCustom = (providerID: string) => {
+    const provider = serverSync().data.config.provider?.[providerID]
+    if (!provider) return false
+    if (provider.npm !== "@ai-sdk/openai-compatible") return false
+    if (!provider.models || Object.keys(provider.models).length === 0) return false
+    return true
+  }
+
+  const canDisconnect = (providerID: string) => {
+    const provider = serverSync().data.provider.all.get(providerID)
+    if (!provider) return false
+    if (provider.source === "env") return false
+    if (protocol() === "v1") return true
+    return !isConfigCustom(providerID)
+  }
+
+  const disableProvider = async (providerID: string, name: string) => {
+    if (protocol() !== "v1") return
+    const before = serverSync().data.config.disabled_providers ?? []
+    const next = before.includes(providerID) ? before : [...before, providerID]
+    serverSync().set("config", "disabled_providers", next)
+
+    await serverSync()
+      .updateConfig({ disabled_providers: next })
+      .then(() => {
+        showToast({
+          variant: "success",
+          icon: "circle-check",
+          title: language.t("provider.disconnect.toast.disconnected.title", { provider: name }),
+          description: language.t("provider.disconnect.toast.disconnected.description", { provider: name }),
+        })
+      })
+      .catch((err: unknown) => {
+        serverSync().set("config", "disabled_providers", before)
+        const message = err instanceof Error ? err.message : String(err)
+        showToast({ title: language.t("common.requestFailed"), description: message })
+      })
+  }
+
+  const disconnect = async (providerID: string, name: string) => {
+    if (isConfigCustom(providerID)) {
+      await serverSdk()
+        .client.auth.remove({ providerID })
+        .catch(() => undefined)
+      await disableProvider(providerID, name)
+      return
+    }
+    await serverSdk()
+      .client.auth.remove({ providerID })
+      .then(async () => {
+        await serverSdk().client.global.dispose()
+        showToast({
+          variant: "success",
+          icon: "circle-check",
+          title: language.t("provider.disconnect.toast.disconnected.title", { provider: name }),
+          description: language.t("provider.disconnect.toast.disconnected.description", { provider: name }),
+        })
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err)
+        showToast({ title: language.t("common.requestFailed"), description: message })
+      })
+  }
+
+  const addModel = () => {
+    void dialog.show(() => <DialogAddModel directory={props.directory} />)
+  }
 
   const list = useFilteredList<ModelItem>({
     items: (_filter) => models.list(),
@@ -53,7 +130,12 @@ export const SettingsModelsV2: Component = () => {
   return (
     <>
       <div class="settings-v2-tab-header settings-v2-tab-header--stacked">
-        <h2 class="settings-v2-tab-title">{language.t("settings.models.title")}</h2>
+        <div class="settings-v2-tab-header-row">
+          <h2 class="settings-v2-tab-title">{language.t("settings.models.title")}</h2>
+          <ButtonV2 size="normal" variant="neutral" icon="plus" onClick={addModel}>
+            {language.t("dialog.addModel.title")}
+          </ButtonV2>
+        </div>
         <div class="settings-v2-tab-search">
           <TextInputV2
             type="search"
@@ -150,6 +232,16 @@ export const SettingsModelsV2: Component = () => {
                           <span class="settings-v2-section-title">{group.items[0].provider.name}</span>
                         </span>
                       </button>
+                      <Show when={canDisconnect(group.category)}>
+                        <ButtonV2
+                          size="small"
+                          variant="ghost-muted"
+                          class="ml-auto"
+                          onClick={() => void disconnect(group.category, group.items[0].provider.name)}
+                        >
+                          {language.t("common.disconnect")}
+                        </ButtonV2>
+                      </Show>
                     </h3>
                     <Show when={expanded()}>
                       <SettingsListV2>

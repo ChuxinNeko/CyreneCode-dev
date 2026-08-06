@@ -383,7 +383,22 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
       get agent() {
         return props.controls.agents.visible && props.controls.agents.options.length > 0
           ? {
-              options: () => props.controls.agents.options.map((name) => ({ id: name, label: name })),
+              options: () =>
+                props.controls.agents.options.map((name) => ({
+                  id: name,
+                  label:
+                    name === "ask"
+                      ? language.t("workMode.ask")
+                      : name === "agent"
+                        ? language.t("workMode.agent")
+                        : name === "plan"
+                          ? language.t("workMode.plan")
+                          : name === "debug"
+                            ? language.t("workMode.debug")
+                            : name === "multitask"
+                              ? language.t("workMode.multitask")
+                              : name,
+                })),
               current: () => props.controls.agents.current,
               onSelect: (value: string) => props.controls.agents.select(value),
               keybind: () => command.keybindParts("agent.cycle"),
@@ -475,7 +490,7 @@ function PromptInputV2ModelControl(props: {
 }) {
   const shouldAnimate = createMemo<boolean>((previous) => previous ?? props.loading)
   const language = useLanguage()
-  const openProvidersSettings = useSettingsDialog("providers")
+  const openProvidersSettings = useSettingsDialog("models")
 
   // Only models the user has added and enabled are listed in the dropdown, as
   // opposed to every catalog entry owned by the connected providers.

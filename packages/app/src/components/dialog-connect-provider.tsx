@@ -375,7 +375,7 @@ function ProviderPickerV2(props: {
   )
 }
 
-function ProviderConnection(props: {
+export function ProviderConnection(props: {
   provider: string
   directory?: Accessor<string | undefined>
   onBack: () => void

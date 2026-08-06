@@ -6,6 +6,7 @@ type Translator = (key: string, vars?: Record<string, string | number | boolean>
 export type ModelErr = {
   id?: string
   name?: string
+  context?: string
 }
 
 export type HeaderErr = {
@@ -17,6 +18,7 @@ export type ModelRow = {
   row: string
   id: string
   name: string
+  context: string
   err: ModelErr
 }
 
@@ -89,10 +91,24 @@ export function validateCustomProvider(input: ValidateArgs) {
             return undefined
           })()
     const nameError = !m.name.trim() ? input.t("provider.custom.error.required") : undefined
-    return { id: idError, name: nameError }
+    const contextValue = m.context.trim()
+    const contextError =
+      contextValue && (!/^\d+$/.test(contextValue) || Number(contextValue) <= 0)
+        ? input.t("provider.custom.models.context.invalid")
+        : undefined
+    return { id: idError, name: nameError, context: contextError }
   })
-  const modelsValid = models.every((m) => !m.id && !m.name)
-  const modelConfig = Object.fromEntries(input.form.models.map((m) => [m.id.trim(), { name: m.name.trim() }]))
+  const modelsValid = models.every((m) => !m.id && !m.name && !m.context)
+  const modelConfig = Object.fromEntries(
+    input.form.models.map((m) => {
+      const entry: { name?: string; limit?: { context: number; output: number } } = { name: m.name.trim() }
+      const ctx = Number(m.context.trim())
+      // output 留 0：后端 provider.ts 解析时 `?? 0`，transform.maxOutputTokens 再用
+      // `Math.min(output, OUTPUT_TOKEN_MAX) || OUTPUT_TOKEN_MAX` 兜底为 OUTPUT_TOKEN_MAX。
+      if (Number.isInteger(ctx) && ctx > 0) entry.limit = { context: ctx, output: 0 }
+      return [m.id.trim(), entry]
+    }),
+  )
 
   const seenHeaders = new Set<string>()
   const headers = input.form.headers.map((h) => {
@@ -154,5 +170,5 @@ let row = 0
 
 const nextRow = () => `row-${row++}`
 
-export const modelRow = (): ModelRow => ({ row: nextRow(), id: "", name: "", err: {} })
+export const modelRow = (): ModelRow => ({ row: nextRow(), id: "", name: "", context: "", err: {} })
 export const headerRow = (): HeaderRow => ({ row: nextRow(), key: "", value: "", err: {} })

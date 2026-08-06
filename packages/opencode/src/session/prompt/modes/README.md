@@ -1,6 +1,6 @@
 # 工作模式提示词资产（移植自 Cursor BYOK）
 
-> 状态：**只移植了提示词资产，尚未接入运行逻辑**。具体工作模式（ask / plan / debug / multitask 等的切换与注入）稍后实现。
+> 状态：**已接入运行逻辑**。工作模式提示词由 `packages/opencode/src/agent/agent.ts` 的 `READ_PROMPT` 加载，`{{FAKE_MODEL_ID}}` 占位符由 `packages/opencode/src/session/llm/request.ts` 在运行时替换为真实模型名。
 
 ## 来源
 
@@ -30,23 +30,26 @@ modes/
 
 - `ReadPrompt(mode)` = **`common_prefix.md` + "\n\n" + `<mode>/prompt.md`**，两个例外：
   - `subagent`、`debug` 只使用各自的 `prompt.md`，**不加** `common_prefix.md`。
-- `{{FAKE_MODEL_ID}}` 占位符由 `render.go` 在运行时替换为真实模型名（空则替换为"当前请求模型"）。
-- 每轮追加的动态提醒：
+- `{{FAKE_MODEL_ID}}` 占位符由 `packages/opencode/src/session/llm/request.ts` 在运行时替换为真实模型名（`providerID/modelID`）。
+- 每轮追加的动态提醒（注意：这些 `system_reminder_*.txt` 文件目前未被运行时加载，opencode 有自己的提醒机制见 `packages/opencode/src/session/reminders.ts`）：
   - `debug/system_reminder_initial.txt`（首轮）与 `debug/system_reminder_continuing.txt`（后续每轮）。
   - `plan/system_reminder.txt`（Plan 模式每轮）。
-- `tools.json` 为该模式暴露的工具白名单（Cursor 格式：`{ "function": {...}, "type": "function" }`）。
+- `tools.json` 为该模式暴露的工具白名单（Cursor 格式：`{ "function": {...}, "type": "function" }`）。opencode 运行时**不使用**这些文件——工具来自 `packages/opencode/src/tool/registry.ts`，按 agent 权限过滤。
 
-## 移植到本工程时需要适配的点（尚未处理）
+## Cursor → opencode 适配状态
 
-品牌名与个人路径已完成清理，但以下内容仍绑定 Cursor 环境，接入工作模式时需改写为 CyreneCode / opencode 对应实现：
+品牌名与个人路径已完成清理，以下内容也已从 Cursor 规范改为 opencode 规范：
 
-1. **占位符与消息约定**：各 `prompt.md` 的 `{{FAKE_MODEL_ID}}` 占位符、`<user_query>` 标签、`@` 符号引用等 —— 需映射到本系统的运行时注入方式。
-2. **工具名映射**：提示词与 `tools.json` 里仍是 Cursor 工具名（`ReadLints`、`PatchEdit`、`Ls`、`Shell`/`AwaitShell`/`WriteShellStdin`、`todo_write`、`SwitchMode`、`CallMcpTool`、`ListMcpResources` 等）；对应到我们环境为 `Read`/`Edit`/`Write`、`Grep`/`Glob`、`Bash`、TodoWrite、Task 等。接入时需按模式重新生成本项目的工具白名单并替换工具名提及。
-3. **CTF 段**：`common_prefix.md` 内含完整 CTF 夺旗赛模式，需确认是否保留（默认建议移除或作为可选 skill）。
+1. **占位符与消息约定**（已完成）：`{{FAKE_MODEL_ID}}` 占位符由 `request.ts` 运行时替换为 `providerID/modelID`。已移除 Cursor 的 `<user_query>` 标签（opencode 不包裹用户文本）、`<attached_files>`、`<task_notification>`、`<system_notification>` 等 Cursor 专用标签。
+2. **`<system-reminder>` 标签**（已完成）：opencode 使用连字符形式 `<system-reminder>`（见 `read.ts`、`plan.txt`、`build-switch.txt` 等原生提示词），已将所有 `.md`/`.txt` 中的 `<system_reminder>`（下划线）替换为 `<system-reminder>`（连字符）。
+3. **工具名映射**（已完成）：提示词（`.md`/`.txt`）中的 Cursor 工具名已替换为 opencode 工具 ID——`ReadLints`→运行 lint/类型检查命令、`todo_write`→`todowrite`、`SwitchMode`→`switch_mode`、`CallMcpTool`→`run_mcp`、`ListMcpResources`→`list_mcp_resources`、`FetchMcpResource`→`read_mcp_resource`、`delete_file`→`bash`（rm）、`AskQuestion`→`question`、`CreatePlan`→直接呈现计划。注意：各模式 `tools.json` 仍是 Cursor 格式的工具白名单，opencode 运行时不使用它们（工具来自 `registry.ts`），如需保留可后续按 opencode 工具 ID 重生成。
+4. **代码块格式**（已完成）：将 Cursor 的 `startLine:endLine:filepath` 代码块引用格式替换为 opencode 规范——引用已有代码用 inline code（反引号）包裹文件路径，展示新代码用标准 fenced code block。
+5. **CTF 段**：`common_prefix.md` 内含完整 CTF 夺旗赛模式，需确认是否保留（默认建议移除或作为可选 skill）。
 
-## 下一步（实现工作模式时）
+## 运行时集成（已完成）
 
-- 在 `packages/opencode/src/session/system.ts` 的 `provider()` 分派逻辑旁，新增按模式选择提示词的分派。
-- 按上述拼接规则实现：common_prefix + mode prompt（subagent/debug 例外）+ `{{FAKE_MODEL_ID}}` 运行时替换。
-- 建立模式状态机（默认 agent；可切换到 ask / plan / debug / multitask），并把每轮动态提醒（plan / debug）注入到对应消息。
-- 按模式过滤可用工具（对应 `tools.json`）。
+- 工作模式提示词由 `packages/opencode/src/agent/agent.ts` 的 `READ_PROMPT` 加载：`common_prefix.md` + 各模式 `prompt.md`（debug 例外，只用自身 prompt）。
+- `{{FAKE_MODEL_ID}}` 占位符由 `packages/opencode/src/session/llm/request.ts` 运行时替换为 `providerID/modelID`。
+- 模式切换通过 `switch_mode` 工具（`packages/opencode/src/tool/switch-mode.ts`）实现，注册在 `registry.ts` 中，仅对 ask/agent/debug/multitask 开放。
+- 工具按 agent 权限过滤（`registry.ts` 的 `tools()` 方法），不使用 `tools.json`。
+- 每轮动态提醒由 `packages/opencode/src/session/reminders.ts` 处理（使用 opencode 原生的 `plan.txt`/`build-switch.txt`/`plan-mode.txt`，而非本目录下的 `system_reminder_*.txt`）。

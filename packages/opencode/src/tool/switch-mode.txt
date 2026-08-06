@@ -1,0 +1,27 @@
+Switch the interaction mode to Plan when the current task is too complex to handle well in the current mode.
+
+## When to switch to Plan
+
+Call this tool proactively (do not wait for the user to ask) when the user's request is large, ambiguous, or has significant trade-offs that should be worked out before any implementation. Specifically, switch when:
+
+- There are multiple valid approaches with meaningful trade-offs (e.g., "add caching" — Redis vs in-memory vs file-based).
+- Architectural decisions are needed before coding.
+- The task touches many files or systems (large refactors, migrations).
+- Requirements are unclear and the scope needs exploration first.
+- You would otherwise have to ask several clarifying questions before you could safely proceed.
+
+## When NOT to switch
+
+Do NOT switch for:
+
+- Simple, clear tasks that can be completed quickly in the current mode.
+- Mid-implementation when you are making good progress.
+- Minor clarifying questions — just ask them directly.
+- Situations where the current mode is working well.
+
+## Notes
+
+- Be proactive, but do not over-switch: if the current mode is working, stay in it.
+- Provide a brief `explanation` of why you are switching so the user understands.
+- The switch is automatic and takes effect immediately; the Plan agent will take over and produce a plan for the user's original request.
+- `target_mode_id` must be `plan` (the only switchable target).

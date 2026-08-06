@@ -20,6 +20,7 @@ import { Permission } from "@/permission"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { EventV2 } from "@opencode-ai/core/event"
 import { Wildcard } from "@/util/wildcard"
+import { errorMessage } from "@/util/error"
 import { SessionID } from "@/session/schema"
 import { Auth } from "@/auth"
 import { EffectBridge } from "@/effect/bridge"
@@ -31,6 +32,46 @@ import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
+
+// reasoning/thinking 相关的错误关键词，用于判断模型是否因不支持 reasoning 参数而报错。
+const REASONING_ERROR_KEYWORDS = [
+  "reasoning",
+  "reasoning_effort",
+  "reasoningeffort",
+  "thinking",
+  "enable_thinking",
+  "enablethinking",
+]
+
+function isReasoningError(error: unknown): boolean {
+  const msg = errorMessage(error).toLowerCase()
+  return REASONING_ERROR_KEYWORDS.some((kw) => msg.includes(kw))
+}
+
+// 从 providerOptions 中剥离所有 reasoning/thinking 相关键，用于降级重试。
+function stripReasoningOptions(options: Record<string, any>): Record<string, any> {
+  const next: Record<string, any> = { ...options }
+  delete next.reasoningEffort
+  delete next.reasoning
+  delete next.thinking
+  delete next.thinkingConfig
+  delete next.enable_thinking
+  delete next.enableThinking
+  delete next.reasoningSummary
+  delete next.forceReasoning
+  delete next.include
+  return next
+}
+
+// 将已 peek 的首个事件重新放回流首部，避免消费丢失。
+async function* prependEvent<T>(first: T | undefined, iter: AsyncIterator<T>): AsyncIterable<T> {
+  if (first !== undefined) yield first
+  while (true) {
+    const { done, value } = await iter.next()
+    if (done) return
+    yield value
+  }
+}
 
 export type StreamInput = {
   user: SessionV1.User
@@ -44,6 +85,7 @@ export type StreamInput = {
   small?: boolean
   tools: Record<string, Tool>
   retries?: number
+  stripReasoning?: boolean
   toolChoice?: "auto" | "required" | "none"
 }
 
@@ -103,7 +145,7 @@ const live: Layer.Layer<
       )
 
       const isWorkflow = language instanceof GitLabWorkflowLanguageModel
-      const prepared = yield* LLMRequestPrep.prepare({
+      let prepared = yield* LLMRequestPrep.prepare({
         ...input,
         provider: item,
         auth: info,
@@ -111,6 +153,14 @@ const live: Layer.Layer<
         flags,
         isWorkflow,
       })
+      // 降级重试时剥离 reasoning 参数，避免模型因不支持的 reasoning 字段报错。
+      if (input.stripReasoning) {
+        prepared = {
+          ...prepared,
+          params: { ...prepared.params, options: stripReasoningOptions(prepared.params.options) },
+          messageTransformOptions: stripReasoningOptions(prepared.messageTransformOptions),
+        }
+      }
 
       // Wire up toolExecutor for DWS workflow models so that tool calls
       // from the workflow service are executed via opencode's tool system
@@ -364,13 +414,34 @@ const live: Layer.Layer<
             )
 
             const result = yield* run({ ...input, abort: ctrl.signal })
-
             if (result.type === "native") return result.stream
 
-            // Adapter seam: both runtimes expose the same LLMEvent stream. Native
-            // already returns one; AI SDK streams are converted here.
+            // AI SDK 路径：peek 首个事件。若模型因不支持 reasoning 参数而立即报错，
+            // 则剥离 reasoning 参数降级重试一次，避免用户因模型能力标记默认开启而卡住。
             const state = LLMAISDK.adapterState()
-            return Stream.fromAsyncIterable(result.result.fullStream, (e) =>
+            const iter = result.result.fullStream[Symbol.asyncIterator]()
+            const first = yield* Effect.promise(() => iter.next())
+
+            if (!first.done && first.value.type === "error" && isReasoningError(first.value.error)) {
+              yield* Effect.logWarning("model rejected reasoning params; retrying without reasoning", {
+                providerID: input.model.providerID,
+                modelID: input.model.id,
+                "session.id": input.sessionID,
+              })
+              const fallback = yield* run({ ...input, abort: ctrl.signal, stripReasoning: true })
+              if (fallback.type === "native") return fallback.stream
+              const fallbackState = LLMAISDK.adapterState()
+              return Stream.fromAsyncIterable(fallback.result.fullStream, (e) =>
+                e instanceof Error ? e : new Error(String(e)),
+              ).pipe(
+                Stream.mapEffect((event) => LLMAISDK.toLLMEvents(fallbackState, event)),
+                Stream.flatMap((events) => Stream.fromIterable(events)),
+              )
+            }
+
+            // 正常路径：把首个事件放回流首部继续消费。
+            const firstEvent = first.done ? undefined : first.value
+            return Stream.fromAsyncIterable(prependEvent(firstEvent, iter), (e) =>
               e instanceof Error ? e : new Error(String(e)),
             ).pipe(
               Stream.mapEffect((event) => LLMAISDK.toLLMEvents(state, event)),

@@ -55,9 +55,15 @@ const mergeOptions = (target: Record<string, any>, source: Record<string, any> |
 
 export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: PrepareInput) {
   const isOpenaiOauth = input.provider.id === "openai" && input.auth?.type === "oauth"
+  // 工作模式提示词里的 {{FAKE_MODEL_ID}} 占位符替换为真实模型名；对不含该占位符的
+  // agent（build/plan/explore 等）replaceAll 是 no-op，不影响。
+  const agentPrompt = input.agent.prompt?.replaceAll(
+    "{{FAKE_MODEL_ID}}",
+    `${input.model.providerID}/${input.model.api.id}`,
+  )
   const system = [
     [
-      ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
+      ...(agentPrompt ? [agentPrompt] : SystemPrompt.provider(input.model)),
       ...input.system,
       ...(input.user.system ? [input.user.system] : []),
     ]

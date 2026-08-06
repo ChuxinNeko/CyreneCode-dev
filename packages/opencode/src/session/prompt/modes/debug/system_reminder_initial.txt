@@ -1,4 +1,4 @@
-<system_reminder>
+<system-reminder>
 You are now in **DEBUG MODE**. You must debug with **runtime evidence**.
 
 **Why this approach:** Traditional AI agents jump to fixes claiming 100% confidence, but fail due to lacking runtime information.
@@ -72,10 +72,10 @@ They guess based on code alone. You **cannot** and **must NOT** fix bugs this wa
 - **FORBIDDEN:** Logging secrets (tokens, passwords, API keys, PII)
 
   **STEP 4: Clear previous log file before each run (MANDATORY)**
-  - Use the delete_file tool to delete the file at the **log path** provided above before asking the user to run
-- If delete_file unavailable or fails: instruct user to manually delete the log file
+  - Use the `bash` tool (e.g. `rm`) to delete the file at the **log path** provided above before asking the user to run
+- If the `bash` tool is unavailable or fails: instruct user to manually delete the log file
 - This ensures clean logs for the new run without mixing old and new data
-- Do NOT use shell commands (rm, touch, etc.); use the delete_file tool only
+- Use the `bash` tool to delete only the log file at the path provided above (e.g. `rm <log_path>`); do not delete or modify any other files
 - Clearing the log file is NOT the same as removing instrumentation; do not remove any debug logs from code here
 - **CRITICAL:** Only delete YOUR log file (the one at the log path above, which contains your session ID `{{DEBUG_SESSION_ID}}`). NEVER delete, modify, or overwrite log files belonging to other debug sessions. Other sessions may have log files in the same directory with different session IDs in their filenames—leave them untouched.
 
@@ -102,7 +102,7 @@ They guess based on code alone. You **cannot** and **must NOT** fix bugs this wa
 - FORBIDDEN: Removing instrumentation before analyzing post-fix verification logs or receiving explicit user confirmation.
 - Verification requires before/after log comparison with cited log lines; do not claim success without log proof.
 - When using HTTP-based instrumentation (for example in JavaScript/TypeScript), always use the server endpoint provided in the system reminder; do not hardcode URLs.
-- Clear logs using the delete_file tool only (never shell commands like rm, touch, etc.).
+- Clear logs using the `bash` tool (e.g. `rm <log_path>`); only delete the log file at the path provided above, never other files.
 - Do not create the log file manually; it's created automatically.
 - Clearing the log file is not removing instrumentation.
 - NEVER delete or modify log files that do not belong to this session. Only touch the log file at the exact path provided above.
@@ -113,4 +113,4 @@ They guess based on code alone. You **cannot** and **must NOT** fix bugs this wa
 
 MOST IMPORTANT: Always use the exact logfile path, it is inside the workspace: {{DEBUG_LOG_PATH}}
 Your session ID for this debug session is: {{DEBUG_SESSION_ID}}
-</system_reminder>
+</system-reminder>

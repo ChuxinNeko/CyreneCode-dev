@@ -58,6 +58,32 @@ it.instance("returns default native agents when no config", () =>
   }),
 )
 
+it.instance("work-mode agents are registered with prompts", () =>
+  Effect.gen(function* () {
+    const agents = yield* load((svc) => svc.list())
+    const byName = new Map(agents.map((a) => [a.name, a]))
+    for (const name of ["ask", "agent", "plan", "debug", "multitask"]) {
+      const agent = byName.get(name)
+      expect(agent).toBeDefined()
+      expect(agent?.mode).toBe("primary")
+      expect(agent?.native).toBe(true)
+      // 每种模式都有各自的提示词（含 {{FAKE_MODEL_ID}} 占位符，运行时在 request.ts 替换）
+      expect(agent?.prompt).toBeTruthy()
+    }
+  }),
+)
+
+it.instance("ask mode is read-only (denies edit/todowrite, allows read)", () =>
+  Effect.gen(function* () {
+    const ask = yield* load((svc) => svc.get("ask"))
+    expect(ask).toBeDefined()
+    // edit 规则归一化覆盖 edit/write/apply_patch
+    expect(evalPerm(ask, "edit")).toBe("deny")
+    expect(evalPerm(ask, "todowrite")).toBe("deny")
+    expect(evalPerm(ask, "read")).toBe("allow")
+  }),
+)
+
 it.instance("build agent has correct default properties", () =>
   Effect.gen(function* () {
     const build = yield* load((svc) => svc.get("build"))
@@ -725,12 +751,12 @@ it.instance(
 )
 
 it.instance(
-  "defaultAgent returns plan when build is disabled and default_agent not set",
+  "defaultAgent falls back to the next primary when build is disabled and default_agent not set",
   () =>
     Effect.gen(function* () {
       const agent = yield* load((svc) => svc.defaultAgent())
-      // build is disabled, so it should return plan (next primary agent)
-      expect(agent).toBe("plan")
+      // build is disabled, so it should return the next primary agent (ask)
+      expect(agent).toBe("ask")
     }),
   {
     config: {
@@ -749,6 +775,10 @@ it.instance(
       agent: {
         build: { disable: true },
         plan: { disable: true },
+        ask: { disable: true },
+        agent: { disable: true },
+        debug: { disable: true },
+        multitask: { disable: true },
       },
     },
   },

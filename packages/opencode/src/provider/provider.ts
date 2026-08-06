@@ -1459,7 +1459,10 @@ const layer = Layer.effect(
               providerID: ProviderV2.ID.make(providerID),
               capabilities: {
                 temperature: model.temperature ?? existingModel?.capabilities.temperature ?? false,
-                reasoning: model.reasoning ?? existingModel?.capabilities.reasoning ?? false,
+                // 推理能力默认开启：现在不支持推理的模型极少，对未知模型（主要是自定义
+                // provider 导入的模型）默认按支持推理处理；若模型实际不支持，LLM 运行时
+                // 会在请求失败时自动降级去掉 reasoning 参数重试。
+                reasoning: model.reasoning ?? existingModel?.capabilities.reasoning ?? true,
                 attachment: model.attachment ?? existingModel?.capabilities.attachment ?? false,
                 toolcall: model.tool_call ?? existingModel?.capabilities.toolcall ?? true,
                 input: {
