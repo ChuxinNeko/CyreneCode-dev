@@ -20,6 +20,7 @@ import { useSessionTabAvatarState } from "@/pages/layout/project-avatar-state"
 import { pathKey } from "@/utils/path-key"
 import { showToast } from "@/utils/toast"
 import { Binary } from "@opencode-ai/core/util/binary"
+import { notifySessionTabsRemoved } from "@/components/titlebar-session-events"
 import { archiveHomeSession } from "../home-session-archive"
 import type { HomeController } from "./home-controller"
 
@@ -52,33 +53,46 @@ export function createHomeSessionsController(home: HomeController) {
     () => new Map(home.project.list().flatMap((project) => (project.id ? [[project.id, project] as const] : []))),
   )
   const homeSessions = () => home.server.focusedSync().homeSessions
-  const sessionEventLoad = useQuery(() => ({
-    queryKey: homeSessions().eventsKey,
-    queryFn: async (): Promise<HomeSessionEvents> => ({ sequence: 0, entries: [] }),
-    initialData: { sequence: 0, entries: [] } satisfies HomeSessionEvents,
-    enabled: false,
-  }))
-  const sessionLoad = useQuery(() => ({
-    queryKey: homeSessions().indexKey,
-    enabled: !!home.server.focusedContext(),
-    queryFn: async ({ signal }) => {
-      const ctx = home.server.focusedContext()
-      if (!ctx) return { sessions: [], eventSequence: 0 }
-      const cache = homeSessions()
-      const eventSequence = cache.eventSequence()
-      const index = await loadHomeSessionIndex(
-        (input, options) => ctx.sdk.client.v2.session.list(input, options),
-        eventSequence,
-        signal,
-      )
-      cache.complete(eventSequence)
-      return index
-    },
-    retry: false,
-    staleTime: 30_000,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-  }))
+  // Bind these queries to the same QueryClient that homeSessions.apply() writes
+  // to. The sync context's QueryClient (resolved from the GlobalProvider owner
+  // tree) is not the one provided by ServerShell's QueryClientProvider, so
+  // without this the sidebar would observe a different client and never receive
+  // optimistic session.created/session.updated updates — new sessions would only
+  // appear after a full refetch on restart.
+  const cacheClient = () => homeSessions().queryClient
+  const sessionEventLoad = useQuery(
+    () => ({
+      queryKey: homeSessions().eventsKey,
+      queryFn: async (): Promise<HomeSessionEvents> => ({ sequence: 0, entries: [] }),
+      initialData: { sequence: 0, entries: [] } satisfies HomeSessionEvents,
+      enabled: false,
+    }),
+    cacheClient,
+  )
+  const sessionLoad = useQuery(
+    () => ({
+      queryKey: homeSessions().indexKey,
+      enabled: !!home.server.focusedContext(),
+      queryFn: async ({ signal }) => {
+        const ctx = home.server.focusedContext()
+        if (!ctx) return { sessions: [], eventSequence: 0 }
+        const cache = homeSessions()
+        const eventSequence = cache.eventSequence()
+        const index = await loadHomeSessionIndex(
+          (input, options) => ctx.sdk.client.v2.session.list(input, options),
+          eventSequence,
+          signal,
+        )
+        cache.complete(eventSequence)
+        return index
+      },
+      retry: false,
+      staleTime: 30_000,
+      refetchOnMount: true,
+      refetchOnReconnect: true,
+    }),
+    cacheClient,
+  )
   const indexedSessions = createMemo(() =>
     retainHomeSessions(
       homeSessions().sessions(sessionLoad.data, sessionEventLoad.data),
@@ -90,6 +104,17 @@ export function createHomeSessionsController(home: HomeController) {
     buildHomeSessionRecords({
       sessions: indexedSessions,
       projectDirectories,
+      projects: home.project.list,
+      projectByID,
+    }),
+  )
+  // All projects' records, regardless of the currently-selected project. The
+  // persistent sidebar needs sessions for every project, but `projectDirectories`
+  // (and therefore `records`/`allRecords`) is narrowed to the selected project.
+  const allProjectRecords = createMemo(() =>
+    buildHomeSessionRecords({
+      sessions: indexedSessions,
+      projectDirectories: () => home.project.list().flatMap(directories),
       projects: home.project.list,
       projectByID,
     }),
@@ -170,6 +195,7 @@ export function createHomeSessionsController(home: HomeController) {
     data: {
       records,
       groups,
+      allProjectRecords,
       loading: () => sessionLoad.isLoading,
       searchRecords: allRecords,
     },
@@ -199,6 +225,11 @@ export function createHomeSessionsController(home: HomeController) {
           return
         }
         ctx.projects.touch(directory)
+        // The chat row is highlighted from the active route, not from the project
+        // selection. Clear the folder-level selection so the parent project name
+        // isn't highlighted alongside the selected chat — a stale project (e.g.
+        // "Default Project") would otherwise stay highlighted forever.
+        home.selection.set({ server: ServerConnection.key(conn) })
         void startTransition(() => {
           const tab = tabs.addSessionTab({ server: ServerConnection.key(conn), sessionId: session.id })
           tabs.select(tab)
@@ -232,6 +263,82 @@ export function createHomeSessionsController(home: HomeController) {
               description: errorMessage(cause, language.t("common.requestFailed")),
             }),
         })
+      },
+      remove: async (session: Session) => {
+        const conn = home.server.focused()
+        const ctx = home.server.focusedContext()
+        if (!conn || !ctx) return
+        try {
+          await ctx.sdk.api.session.remove({ sessionID: session.id, directory: session.directory })
+        } catch (cause) {
+          showToast({
+            title: language.t("session.delete.failed.title"),
+            description: errorMessage(cause, language.t("session.delete.failed.title")),
+          })
+          return
+        }
+        // Optimistically drop the session from the Home index. The server also
+        // emits session.deleted, which is a no-op once it's already gone.
+        homeSessions().apply({
+          type: "session.deleted",
+          properties: { sessionID: session.id, info: session },
+        })
+        // Close any open tab for the session and navigate away if it was active.
+        notifySessionTabsRemoved({
+          server: ServerConnection.key(conn),
+          directory: session.directory,
+          sessionIDs: [session.id],
+        })
+      },
+      rename: async (session: Session, title: string) => {
+        const ctx = home.server.focusedContext()
+        if (!ctx) return
+        const next = title.trim()
+        if (!next || next === session.title) return
+        try {
+          await ctx.sdk.api.session.rename({ sessionID: session.id, title: next, directory: session.directory })
+        } catch (cause) {
+          showToast({
+            title: language.t("common.requestFailed"),
+            description: errorMessage(cause, language.t("common.requestFailed")),
+          })
+          return
+        }
+        // Optimistically update the title; the server also emits session.updated.
+        homeSessions().apply({
+          type: "session.updated",
+          properties: { sessionID: session.id, info: { ...session, title: next } },
+        })
+      },
+      shareEnabled: () => home.server.focusedContext()?.sync.data.config.share !== "disabled",
+      share: async (session: Session): Promise<string | undefined> => {
+        const ctx = home.server.focusedContext()
+        if (!ctx) return undefined
+        try {
+          const result = await ctx.sdk.client.session.share({
+            sessionID: session.id,
+            directory: session.directory,
+          })
+          return result.data?.share?.url
+        } catch (cause) {
+          showToast({
+            title: language.t("common.requestFailed"),
+            description: errorMessage(cause, language.t("common.requestFailed")),
+          })
+          return undefined
+        }
+      },
+      unshare: async (session: Session): Promise<void> => {
+        const ctx = home.server.focusedContext()
+        if (!ctx) return
+        try {
+          await ctx.sdk.client.session.unshare({ sessionID: session.id, directory: session.directory })
+        } catch (cause) {
+          showToast({
+            title: language.t("common.requestFailed"),
+            description: errorMessage(cause, language.t("common.requestFailed")),
+          })
+        }
       },
     },
     tab: {

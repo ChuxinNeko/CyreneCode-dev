@@ -187,6 +187,26 @@
   }
 }
 
+/* 全屏设置页面：左侧 tab 列表宽度对齐侧边栏 (w-[22%] min-w-[224px] max-w-80)，
+   让顶部"返回主窗口"按钮落在原 "CyreneCode" 标题位置。
+   判别符用 data-settings-page（Kobalte 会把它作为 data-* 原样透传到根节点，
+   规避 classList 透传不可靠的问题）；半透明背景是"非 layer + 更高 specificity"，
+   保证压过下面 .settings:177 那条非 layer 的不透明 bg-layer-01 兜底，
+   让窗口亚克力透出，与 AppSidebar 的 bg-v2-background-bg-deep/70 一致。 */
+[data-component="tabs-v2"][data-settings-page][data-variant="settings"][data-orientation="vertical"]
+  [data-slot="tabs-v2-list"] {
+  width: 22%;
+  min-width: 224px;
+  max-width: 320px;
+  border-right: 0.5px solid var(--v2-border-border-base);
+  background-color: color-mix(in oklab, var(--v2-background-bg-deep) 70%, transparent);
+}
+
+/* 右侧内容区不透明，遮挡亚克力，与主窗口 main 的 bg-v2-background-bg-deep 一致 */
+[data-component="tabs-v2"][data-settings-page] [data-slot="tabs-v2-content"] {
+  background-color: var(--v2-background-bg-deep);
+}
+
 .settings-v2-nav-footer {
   display: flex;
   flex-direction: column;

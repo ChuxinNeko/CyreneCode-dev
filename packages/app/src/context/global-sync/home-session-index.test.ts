@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import type { SessionV2Info } from "@opencode-ai/sdk/v2/client"
+import { QueryClient } from "@tanstack/solid-query"
 import {
   applyHomeSessionEvent,
   appendHomeSessionEvent,
+  createHomeSessionIndexCache,
   HOME_V2_SESSION_PAGE_LIMIT,
   loadHomeSessionIndex,
   homeSessionIndexSessions,
@@ -127,6 +129,52 @@ describe("Home V2 session index", () => {
         properties: { sessionID: initial[0]!.id, info: initial[0]! },
       }),
     ).toEqual([created])
+  })
+
+  test("retains a created session until the Home index has data", () => {
+    const queryClient = new QueryClient()
+    const cache = createHomeSessionIndexCache(queryClient, "server")
+    const created = {
+      ...parseHomeSessionIndex([session({ id: "new" })])[0]!,
+      title: "用户发送的第一句话",
+    }
+
+    cache.apply({
+      type: "session.created",
+      properties: { sessionID: created.id, info: created },
+    })
+
+    const events = queryClient.getQueryData<HomeSessionEvents>(cache.eventsKey)
+    expect(events?.entries).toHaveLength(1)
+    expect(cache.sessions({ sessions: [], eventSequence: 0 }, events)[0]?.title).toBe("用户发送的第一句话")
+  })
+
+  test("updates the mounted Home cache immediately and accepts the summarized title later", () => {
+    const queryClient = new QueryClient()
+    const cache = createHomeSessionIndexCache(queryClient, "server")
+    queryClient.setQueryData(cache.indexKey, { sessions: [], eventSequence: 0 })
+
+    const created = {
+      ...parseHomeSessionIndex([session({ id: "new" })])[0]!,
+      title: "用户发送的第一句话",
+    }
+    cache.apply({
+      type: "session.created",
+      properties: { sessionID: created.id, info: created },
+    })
+
+    expect(queryClient.getQueryData<{ sessions: Array<{ title?: string }> }>(cache.indexKey)?.sessions[0]?.title).toBe(
+      "用户发送的第一句话",
+    )
+
+    cache.apply({
+      type: "session.updated",
+      properties: { sessionID: created.id, info: { ...created, title: "总结后的主题" } },
+    })
+
+    expect(queryClient.getQueryData<{ sessions: Array<{ title?: string }> }>(cache.indexKey)?.sessions[0]?.title).toBe(
+      "总结后的主题",
+    )
   })
 
   test("applies only events newer than the index baseline", () => {

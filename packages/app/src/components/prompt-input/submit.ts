@@ -415,8 +415,13 @@ export function createPromptSubmit(input: PromptSubmitInput) {
           return undefined
         })
       if (created) {
-        seed(sessionDirectory, created)
-        session = created
+        const optimisticSession = text.trim() ? { ...created, title: text.trim() } : created
+        seed(sessionDirectory, optimisticSession)
+        serverSync().homeSessions.apply({
+          type: "session.created",
+          properties: { sessionID: optimisticSession.id, info: optimisticSession },
+        })
+        session = optimisticSession
         await startTransition(() => {
           if (!session) return
           if (shouldAutoAccept) permissionState.enableAutoAccept(session.id, sessionDirectory)

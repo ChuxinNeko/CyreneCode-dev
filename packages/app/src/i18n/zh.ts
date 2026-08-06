@@ -869,6 +869,7 @@ export const dict = {
 
   "settings.tab.general": "通用",
   "settings.tab.shortcuts": "快捷键",
+  "settings.backToMain": "返回主窗口",
 
   "settings.desktop.section.wsl": "WSL",
   "settings.desktop.wsl.title": "WSL 集成",

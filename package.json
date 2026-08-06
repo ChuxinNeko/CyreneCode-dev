@@ -85,6 +85,7 @@
   "devDependencies": {
     "@tsconfig/bun": "catalog:",
     "@typescript/native-preview": "catalog:",
+    "electron": "42.3.3",
     "glob": "13.0.5",
     "oxlint": "^1.60.0",
     "oxlint-tsgolint": "^0.21.0",

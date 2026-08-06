@@ -1,26 +1,29 @@
 import { useParams } from "@solidjs/router"
-import { onCleanup } from "solid-js"
+import { createSignal } from "solid-js"
 import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
+
+// 模块级状态：控制全屏设置页面显示。useSettingsDialog 触发打开，
+// NewLayout 通过 useSettingsPage 消费并渲染 SettingsPage。
+type SettingsPageState = {
+  open: boolean
+  sessionID?: string
+  defaultValue?: string
+}
+
+const [settingsPageState, setSettingsPageState] = createSignal<SettingsPageState>({ open: false })
 
 export function useSettingsDialog(defaultValue?: string) {
-  const dialog = useDialog()
   const params = useParams<{ id?: string }>()
-  let run = 0
-  let dead = false
-
-  onCleanup(() => {
-    dead = true
-  })
-
   return () => {
-    const current = ++run
-    const sessionID = params.id
-    void import("@/components/settings-v2").then((module) => {
-      if (dead || run !== current) return
-      void dialog.show(() => <module.DialogSettings sessionID={sessionID} defaultValue={defaultValue} />)
-    })
+    setSettingsPageState({ open: true, sessionID: params.id, defaultValue })
+  }
+}
+
+export function useSettingsPage() {
+  return {
+    state: settingsPageState,
+    close: () => setSettingsPageState((prev) => ({ ...prev, open: false })),
   }
 }
 

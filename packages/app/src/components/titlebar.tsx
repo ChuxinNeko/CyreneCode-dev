@@ -27,14 +27,15 @@ import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
 import { useSettings } from "@/context/settings"
 import { WindowsAppMenu } from "./windows-app-menu"
+import { MenuBar } from "./menu-bar"
+import { WindowControls } from "./window-controls"
 import { applyPath, backPath, forwardPath } from "./titlebar-history"
-import { TitlebarTabStrip } from "@/components/titlebar-tab-strip"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createMediaQuery } from "@solid-primitives/media"
 import { readSessionTabsRemovedDetail, SESSION_TABS_REMOVED_EVENT } from "@/components/titlebar-session-events"
 import { useGlobal } from "@/context/global"
 import { ServerConnection, useServer } from "@/context/server"
-import { tabKey, useTabs } from "@/context/tabs"
+import { useTabs } from "@/context/tabs"
 import type { PromptSession } from "@/context/prompt"
 import "./titlebar.css"
 import { newTabTooltipKeybind } from "./command-tooltip-keybind"
@@ -43,7 +44,6 @@ import { normalizeSessionInfo } from "@/utils/session"
 const legacyTitlebarHeight = 40
 const v2TitlebarHeight = 36
 const minTitlebarZoom = 0.25
-const windowsControlsBaseWidth = 138 // 3 native Windows caption buttons at 46px each.
 const macTrafficLightsBaseWidth = 84
 
 export type TitlebarUpdate = {
@@ -89,7 +89,6 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
     if (windows()) return `${height / Math.min(titlebarZoom(), 1)}px`
     return undefined
   }
-  const windowsControlsWidth = () => `${windowsControlsBaseWidth / Math.max(titlebarZoom(), 1)}px`
 
   const [history, setHistory] = createStore({
     stack: [] as string[],
@@ -173,7 +172,7 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
       data-slot={useV2Titlebar() ? "titlebar-v2" : undefined}
       classList={{
         "shrink-0 relative flex flex-row": true,
-        "h-9 bg-v2-background-bg-deep overflow-visible": useV2Titlebar(),
+        "h-9 bg-v2-background-bg-deep/70 overflow-visible": useV2Titlebar(),
         "h-10 bg-background-base overflow-hidden": !useV2Titlebar(),
         "order-last": bottom(),
       }}
@@ -181,10 +180,6 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
         "min-height": minHeight(),
         // Keep native macOS traffic lights clear even when the desktop window is narrow.
         "padding-left": macTrafficLights() ? `${macTrafficLightsBaseWidth / zoom()}px` : 0,
-        width: windows() ? `env(titlebar-area-width, calc(100vw - ${windowsControlsWidth()}))` : undefined,
-        "max-width": windows() ? `env(titlebar-area-width, calc(100vw - ${windowsControlsWidth()}))` : undefined,
-        // Native Windows caption controls remain on the physical right in both writing directions.
-        "margin-right": windows() ? "auto" : undefined,
       }}
       data-tauri-drag-region
     >
@@ -356,8 +351,6 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
               ].filter((v) => v !== undefined)
             })
 
-            const [tabsAreOverflowing, setTabsAreOverflowing] = createSignal(false)
-
             return (
               <div
                 class="h-full flex-1 overflow-hidden flex flex-row items-center gap-1.5 px-2 md:pr-3"
@@ -369,8 +362,8 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
                 }}
               >
                 <ChannelIndicator debugTools={props.debugTools} />
-                <Show when={windows() || linux()}>
-                  <WindowsAppMenu command={command} platform={platform} variant="v2" />
+                <Show when={windows()}>
+                  <MenuBar command={command} platform={platform} />
                 </Show>
                 <TooltipV2
                   placement="bottom"
@@ -395,21 +388,6 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
                   />
                 </TooltipV2>
 
-                <TitlebarTabStrip
-                  tabs={tabsStore}
-                  currentTab={currentTab}
-                  forceTruncate={tabsAreOverflowing()}
-                  onOverflowChange={setTabsAreOverflowing}
-                  onNavigate={(tab, el) => {
-                    tabs.select(tab)
-                    el?.scrollIntoView({ behavior: "instant" })
-                  }}
-                  onClose={(tab) => {
-                    const index = tabsStore.findIndex((item) => tabKey(item) === tabKey(tab))
-                    if (index !== -1) tabsStoreActions.closeTab(index)
-                  }}
-                  onReorder={(keys) => tabsStoreActions.reorder(keys)}
-                />
                 <TooltipV2
                   placement="bottom"
                   value={
@@ -431,6 +409,9 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
                 </TooltipV2>
                 <div class="flex-1" />
                 <TitlebarV2Right state={v2RightState()} />
+                <Show when={windows()}>
+                  <WindowControls counterZoom={counterZoom} />
+                </Show>
               </div>
             )
           }}
@@ -582,7 +563,7 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
             >
               <div id="opencode-titlebar-right" class="flex items-center gap-1 shrink-0 justify-end" />
               <Show when={windows()}>
-                <div class="shrink-0" style={{ width: windowsControlsWidth() }} />
+                <WindowControls counterZoom={counterZoom} />
               </Show>
             </div>
           </div>
@@ -592,7 +573,7 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
   )
 }
 
-type TitlebarUpdatePillState = {
+export type TitlebarUpdatePillState = {
   visible: boolean
   installing: boolean
   label: string
@@ -616,7 +597,7 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
   )
 }
 
-function TitlebarUpdateIconButton(props: { state: TitlebarUpdatePillState }) {
+export function TitlebarUpdateIconButton(props: { state: TitlebarUpdatePillState }) {
   return (
     <div class="group relative mr-3 h-5 w-5 shrink-0 rounded-full bg-v2-background-bg-deep transition-[width] duration-150 ease-out hover:z-30 hover:w-[68px] focus-within:z-30 focus-within:w-[68px] motion-reduce:transition-none">
       <button

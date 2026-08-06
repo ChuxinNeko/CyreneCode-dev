@@ -89,6 +89,13 @@ export function createHomeSessionIndexCache(queryClient: QueryClient, server: st
   return {
     indexKey,
     eventsKey,
+    // Exposed so observers (e.g. createHomeSessionsController) can subscribe to
+    // the same QueryClient that apply()/refresh() write to. The sync context
+    // resolves its QueryClient from the GlobalProvider owner tree, which is
+    // distinct from the ServerShell's QueryClientProvider that the sidebar
+    // components render under — so useQuery() in the sidebar would otherwise
+    // observe a different client and never see optimistic updates.
+    queryClient,
     eventSequence() {
       return queryClient.getQueryData<HomeSessionEvents>(eventsKey)?.sequence ?? 0
     },
@@ -100,20 +107,17 @@ export function createHomeSessionIndexCache(queryClient: QueryClient, server: st
       return homeSessionIndexSessions(index, events)
     },
     apply(event: HomeSessionEvent) {
-      if (!queryClient.getQueryState(indexKey)) return
       const next = appendHomeSessionEvent(queryClient.getQueryData<HomeSessionEvents>(eventsKey), event)
-      if (queryClient.isFetching({ queryKey: indexKey, exact: true }) > 0) {
+      const index = queryClient.getQueryData<HomeSessionIndex>(indexKey)
+      if (!index || queryClient.isFetching({ queryKey: indexKey, exact: true }) > 0) {
         queryClient.setQueryData(eventsKey, next)
         return
       }
 
-      const index = queryClient.getQueryData<HomeSessionIndex>(indexKey)
-      if (index) {
-        queryClient.setQueryData<HomeSessionIndex>(indexKey, {
-          sessions: homeSessionIndexSessions(index, next),
-          eventSequence: next.sequence,
-        })
-      }
+      queryClient.setQueryData<HomeSessionIndex>(indexKey, {
+        sessions: homeSessionIndexSessions(index, next),
+        eventSequence: next.sequence,
+      })
       queryClient.setQueryData<HomeSessionEvents>(eventsKey, { sequence: next.sequence, entries: [] })
     },
     refresh(event: Event["type"]) {

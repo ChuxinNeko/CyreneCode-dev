@@ -10,43 +10,48 @@ import { DESKTOP_MENU, desktopMenuVisible, type DesktopMenuAction, type DesktopM
 import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
 
+let lastFocused: HTMLElement | undefined
+
+export function rememberFocus() {
+  const active = document.activeElement
+  lastFocused = active instanceof HTMLElement ? active : undefined
+}
+export function commandDisabled(command: ReturnType<typeof useCommand>, id: string) {
+  const option = command.options.find((option) => option.id === id)
+  if (!option) return true
+  return option.disabled ?? false
+}
+export function runCommand(command: ReturnType<typeof useCommand>, id: string) {
+  if (commandDisabled(command, id)) return
+  command.trigger(id)
+}
+export function runAction(platform: ReturnType<typeof usePlatform>, action: DesktopMenuAction) {
+  if (action.startsWith("edit.") && lastFocused?.isConnected) lastFocused.focus({ preventScroll: true })
+  void platform.runDesktopMenuAction?.(action)
+}
+export function runEntry(
+  platform: ReturnType<typeof usePlatform>,
+  command: ReturnType<typeof useCommand>,
+  entry: DesktopMenuEntry,
+) {
+  if (entry.type === "separator") return
+  if (entry.command) {
+    runCommand(command, entry.command)
+    return
+  }
+  if (entry.action) {
+    runAction(platform, entry.action)
+    return
+  }
+  if (entry.href) platform.openExternal(entry.href)
+}
+
 export function WindowsAppMenu(props: {
   command: ReturnType<typeof useCommand>
   platform: ReturnType<typeof usePlatform>
   variant?: "legacy" | "v2"
 }) {
-  let lastFocused: HTMLElement | undefined
   const language = useLanguage()
-
-  const rememberFocus = () => {
-    const active = document.activeElement
-    lastFocused = active instanceof HTMLElement ? active : undefined
-  }
-  const commandDisabled = (id: string) => {
-    const option = props.command.options.find((option) => option.id === id)
-    if (!option) return true
-    return option.disabled ?? false
-  }
-  const runCommand = (id: string) => {
-    if (commandDisabled(id)) return
-    props.command.trigger(id)
-  }
-  const runAction = (action: DesktopMenuAction) => {
-    if (action.startsWith("edit.") && lastFocused?.isConnected) lastFocused.focus({ preventScroll: true })
-    void props.platform.runDesktopMenuAction?.(action)
-  }
-  const runEntry = (entry: DesktopMenuEntry) => {
-    if (entry.type === "separator") return
-    if (entry.command) {
-      runCommand(entry.command)
-      return
-    }
-    if (entry.action) {
-      runAction(entry.action)
-      return
-    }
-    if (entry.href) props.platform.openExternal(entry.href)
-  }
 
   return (
     <DropdownMenu gutter={4} modal={false} placement="bottom-start">
@@ -79,7 +84,7 @@ export function WindowsAppMenu(props: {
       <DropdownMenu.Portal>
         <DropdownMenu.Content class="desktop-app-menu">
           <DropdownMenu.Group>
-            <DropdownMenu.GroupLabel class="desktop-app-menu-heading">OpenCode</DropdownMenu.GroupLabel>
+            <DropdownMenu.GroupLabel class="desktop-app-menu-heading">CyreneCode</DropdownMenu.GroupLabel>
             {DESKTOP_MENU.filter((menu) => desktopMenuVisible(menu, "windows")).map((menu) => (
               <DesktopMenuSubmenu label={language.t(menu.labelKey)}>
                 {menu.items
@@ -91,8 +96,8 @@ export function WindowsAppMenu(props: {
                       <DesktopMenuItem
                         label={entry.labelKey ? language.t(entry.labelKey) : ""}
                         keybind={entry.command ? props.command.keybind(entry.command) : entry.accelerator?.windows}
-                        disabled={entry.command ? commandDisabled(entry.command) : false}
-                        onSelect={() => runEntry(entry)}
+                        disabled={entry.command ? commandDisabled(props.command, entry.command) : false}
+                        onSelect={() => runEntry(props.platform, props.command, entry)}
                       />
                     ),
                   )}
@@ -121,7 +126,7 @@ function DesktopMenuSubmenu(props: { label: string; children: JSX.Element }) {
   )
 }
 
-function DesktopMenuItem(props: { label: string; keybind?: string; disabled?: boolean; onSelect: () => void }) {
+export function DesktopMenuItem(props: { label: string; keybind?: string; disabled?: boolean; onSelect: () => void }) {
   return (
     <DropdownMenu.Item disabled={props.disabled} onSelect={props.onSelect}>
       <DropdownMenu.ItemLabel>{props.label}</DropdownMenu.ItemLabel>

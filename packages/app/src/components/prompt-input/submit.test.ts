@@ -24,6 +24,7 @@ const optimistic: Array<{
 }> = []
 const optimisticSeeded: boolean[] = []
 const storedSessions: Record<string, Array<{ id: string; title?: string }>> = {}
+const homeSessionEvents: Array<{ type: string; properties: { info: { id: string; title?: string } } }> = []
 const promoted: Array<{ directory: string; sessionID: string }> = []
 const sentShell: Array<{ sessionID: string; id?: string; command: string }> = []
 const syncedDirectories: string[] = []
@@ -234,6 +235,11 @@ beforeAll(async () => {
 
   mock.module("@/context/server-sync", () => ({
     useServerSync: () => () => ({
+      homeSessions: {
+        apply: (event: { type: string; properties: { info: { id: string; title?: string } } }) => {
+          homeSessionEvents.push(event)
+        },
+      },
       session: {
         remember: () => undefined,
         set: () => undefined,
@@ -285,6 +291,7 @@ beforeEach(() => {
   enabledAutoAccept.length = 0
   optimistic.length = 0
   optimisticSeeded.length = 0
+  homeSessionEvents.length = 0
   promoted.length = 0
   promotedDrafts.length = 0
   sentPrompts.length = 0
@@ -592,7 +599,13 @@ describe("prompt submit worktree selection", () => {
     await submit.handleSubmit(event)
 
     expect(storedSessions["/repo/worktree-a"]).toHaveLength(1)
-    expect(storedSessions["/repo/worktree-a"]?.[0]).toMatchObject({ id: "session-1", title: "New session 1" })
+    expect(storedSessions["/repo/worktree-a"]?.[0]).toMatchObject({ id: "session-1", title: "ls" })
+    expect(homeSessionEvents).toEqual([
+      {
+        type: "session.created",
+        properties: { sessionID: "session-1", info: expect.objectContaining({ id: "session-1", title: "ls" }) },
+      },
+    ])
     expect(optimisticSeeded).toEqual([true])
   })
 })

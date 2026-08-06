@@ -15,7 +15,12 @@
 
   document.documentElement.dataset.theme = themeId
   document.documentElement.dataset.colorScheme = mode
-  document.documentElement.style.backgroundColor = isDark ? "#080808" : "#fafafa"
+  // Electron + Windows 11 使用原生亚克力材质，需要透明背景，跳过不透明背景色设置；
+  // 其他环境保持不透明背景色以防主题加载前的白闪。
+  var isElectronWindows = /Electron/.test(navigator.userAgent) && /Windows/.test(navigator.userAgent)
+  if (!isElectronWindows) {
+    document.documentElement.style.backgroundColor = isDark ? "#080808" : "#fafafa"
+  }
 
   // Update theme-color meta tag to match app color scheme
   var metas = document.querySelectorAll("meta[name='theme-color']")

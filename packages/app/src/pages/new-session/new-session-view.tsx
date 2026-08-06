@@ -2,7 +2,6 @@ import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
 import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
-import { WordmarkV2 } from "@opencode-ai/ui/v2/wordmark-v2"
 import { Show, createMemo, createSignal, type Accessor } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Portal } from "solid-js/web"
@@ -35,41 +34,58 @@ export function NewSessionView(props: {
     <div class="@container relative flex flex-col min-h-0 h-full flex-1">
       <div
         data-component="session-new-design"
-        class="relative flex-1 min-h-0 overflow-hidden rounded-[10px] bg-v2-background-bg-deep"
+        class="relative flex-1 min-h-0 overflow-hidden rounded-[10px] bg-v2-background-bg-base shadow-[var(--v2-elevation-raised)]"
       >
-        <div class="absolute inset-x-0 top-[25.375%] flex justify-center px-6">
+        <div class="pointer-events-none absolute inset-x-0 top-[28%] flex justify-center px-6">
+          <TimeGreeting />
+        </div>
+        <div class="absolute inset-x-0 bottom-0 flex justify-center px-6 pb-8">
           <div class={NEW_SESSION_CONTENT_WIDTH}>
-            <WordmarkV2 class="h-auto w-full text-v2-background-bg-inverse" />
-            <div class="mt-8 flex flex-col gap-8">
-              <PromptInputV2Composer controller={props.input} />
-              <Show when={props.project.empty()}>
-                <PromptProjectAddButton controller={props.project} />
-              </Show>
-              <Show when={props.project.selected()}>
-                <div class="flex min-h-7 min-w-0 flex-col items-center justify-center gap-0 text-v2-text-text-faint sm:flex-row">
-                  <PromptProjectSelector controller={props.project} placement="bottom" />
-                  <Show
-                    when={props.workspace.bar.visible()}
-                    fallback={
-                      <PromptGitStatus branch={props.workspace.bar.branch()} noGit={!props.workspace.project.git()} />
-                    }
-                  >
-                    <PromptWorkspaceSelector
-                      value={props.workspace.selection.value()}
-                      projectRoot={props.workspace.project.root()}
-                      workspaces={props.workspace.project.workspaces()}
-                      branch={props.workspace.bar.branch()}
-                      onChange={props.workspace.selection.set}
-                      onDone={props.input.restoreFocus}
-                    />
-                  </Show>
-                </div>
-              </Show>
-            </div>
+            <Show when={props.project.selected()}>
+              <div class="mb-4 flex min-h-7 min-w-0 items-start justify-start gap-0 text-v2-text-text-faint sm:flex-row sm:items-center">
+                <PromptProjectSelector controller={props.project} placement="bottom" />
+                <Show
+                  when={props.workspace.bar.visible()}
+                  fallback={
+                    <PromptGitStatus branch={props.workspace.bar.branch()} noGit={!props.workspace.project.git()} />
+                  }
+                >
+                  <PromptWorkspaceSelector
+                    value={props.workspace.selection.value()}
+                    projectRoot={props.workspace.project.root()}
+                    workspaces={props.workspace.project.workspaces()}
+                    branch={props.workspace.bar.branch()}
+                    onChange={props.workspace.selection.set}
+                    onDone={props.input.restoreFocus}
+                  />
+                </Show>
+              </div>
+            </Show>
+            <PromptInputV2Composer controller={props.input} />
+            <Show when={props.project.empty()}>
+              <PromptProjectAddButton controller={props.project} />
+            </Show>
           </div>
         </div>
         <ProviderTip />
       </div>
+    </div>
+  )
+}
+
+function TimeGreeting() {
+  const hour = new Date().getHours()
+  const greeting =
+    hour >= 5 && hour < 12
+      ? "早上好"
+      : hour >= 12 && hour < 14
+        ? "中午好"
+        : hour >= 14 && hour < 18
+          ? "下午好"
+          : "晚上好"
+  return (
+    <div class="w-full text-center text-[40px] font-semibold text-v2-text-text-base">
+      {greeting}，我们该构建什么？
     </div>
   )
 }

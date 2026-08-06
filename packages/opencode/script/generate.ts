@@ -7,8 +7,11 @@ const dir = path.resolve(__dirname, "..")
 
 process.chdir(dir)
 
-const modelsUrl = process.env.OPENCODE_MODELS_URL || "https://models.dev"
+// Model registry is intentionally NOT fetched from models.dev: this project
+// lets users add third-party providers/models manually in the app settings.
+// To inject an offline model snapshot instead, set MODELS_DEV_API_JSON to the
+// path of a local models.dev api.json file.
 export const modelsData = process.env.MODELS_DEV_API_JSON
   ? await Bun.file(process.env.MODELS_DEV_API_JSON).text()
-  : await fetch(`${modelsUrl}/api.json`).then((x) => x.text())
-console.log("Loaded models.dev snapshot")
+  : "{}"
+console.log("Loaded model registry")

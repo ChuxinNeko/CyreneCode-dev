@@ -1,0 +1,21 @@
+/*
+ * Desktop-only window chrome styling.
+ *
+ * The v2 titlebar is a frameless, renderer-drawn title bar (Windows: custom
+ * WCO controls; macOS: hidden titlebar + native traffic lights). Electron
+ * needs an explicit drag region here — the codebase's `data-tauri-drag-region`
+ * attributes are a Tauri convention and are inert on Electron.
+ */
+[data-slot="titlebar-v2"] {
+  -webkit-app-region: drag;
+}
+
+/* Interactive children must opt out of the drag region so clicks/typing work. */
+[data-slot="titlebar-v2"] button,
+[data-slot="titlebar-v2"] a,
+[data-slot="titlebar-v2"] input,
+[data-slot="titlebar-tabs"],
+[data-slot="menu-bar"],
+[data-slot="window-controls"] {
+  -webkit-app-region: no-drag;
+}

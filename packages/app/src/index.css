@@ -3,6 +3,17 @@
 @import "@opencode-ai/ui/v2/styles/tailwind.css";
 @import "tw-animate-css";
 
+@layer base {
+  /* 窗口级亚克力需要 html/body/#root 完全透明，否则 webview 的不透明
+     背景会遮挡 Electron backgroundMaterial 的亚克力材质。
+     非 Windows 平台由窗口 backgroundColor 兜底，视觉无变化。 */
+  html,
+  body,
+  #root {
+    background-color: transparent !important;
+  }
+}
+
 @font-face {
   font-family: "JetBrainsMono Nerd Font Mono";
   src: url("/assets/JetBrainsMonoNerdFontMono-Regular.woff2") format("woff2");

@@ -61,7 +61,6 @@ const registry = createWindowRegistry<BrowserWindow>({
     removeStoreFile(windowDataFile(id))
   },
 })
-const titlebarHeight = 40
 const maxZoomLevel = 10
 const minZoomLevel = 0.2
 
@@ -76,7 +75,8 @@ export function setAppQuitting(quitting = true) {
 export function setBackgroundColor(color: string) {
   backgroundColor = color
   BrowserWindow.getAllWindows().forEach((win) => {
-    win.setBackgroundColor(color)
+    // Windows: 亚克力材质需要透明背景，跳过不透明背景色设置
+    if (process.platform !== "win32") win.setBackgroundColor(color)
     if (process.platform === "darwin") win.invalidateShadow()
   })
 }
@@ -102,15 +102,6 @@ function defaultBackgroundColor() {
   return oc2Background[tone()]
 }
 
-function overlay(theme: Partial<TitlebarTheme> = {}, zoom = 1) {
-  const mode = theme.mode ?? tone()
-  return {
-    color: "#00000000",
-    symbolColor: mode === "dark" ? "white" : "black",
-    height: Math.max(titlebarHeight, Math.round(titlebarHeight * zoom)),
-  }
-}
-
 export function setTitlebar(win: BrowserWindow, theme: Partial<TitlebarTheme> = {}) {
   titlebarThemes.set(win, theme)
   // macOS draws the window frame hairline and shadow using the NSWindow
@@ -120,13 +111,14 @@ export function setTitlebar(win: BrowserWindow, theme: Partial<TitlebarTheme> = 
   // "system" (not the resolved mode) or prefers-color-scheme stops tracking
   // OS appearance changes in the renderer.
   if (process.platform === "darwin") nativeTheme.themeSource = theme.scheme ?? theme.mode ?? "system"
-  updateTitlebar(win)
 }
 
-export function updateTitlebar(win: BrowserWindow) {
-  if (process.platform !== "win32") return
-  win.setTitleBarOverlay(overlay(titlebarThemes.get(win), win.webContents.getZoomFactor()))
-}
+/**
+ * No-op. Window Controls Overlay (WCO) is disabled — the renderer draws its
+ * own window controls in the title bar (`WindowControls`). Kept exported so
+ * callers (zoom/theme updates) keep resolving.
+ */
+export function updateTitlebar(_win: BrowserWindow) {}
 
 export function setPinchZoomEnabled(enabled: boolean) {
   getStore().set(PINCH_ZOOM_ENABLED_KEY, enabled)
@@ -172,7 +164,6 @@ export function createMainWindow(id: string = randomUUID()) {
     defaultHeight: 800,
   })
 
-  const mode = tone()
   const win = new BrowserWindow({
     x: state.x,
     y: state.y,
@@ -180,9 +171,11 @@ export function createMainWindow(id: string = randomUUID()) {
     height: state.height,
     show: false,
     autoHideMenuBar: true,
-    title: "OpenCode",
+    title: "CyreneCode",
     icon: iconPath(),
-    backgroundColor: backgroundColor ?? defaultBackgroundColor(),
+    // Windows 11: 亚克力材质需要透明背景（在下方 win32 分支用 #00000000）；
+    // 其他平台保持不透明背景色。
+    ...(process.platform === "win32" ? {} : { backgroundColor: backgroundColor ?? defaultBackgroundColor() }),
     ...(process.platform === "darwin"
       ? {
           titleBarStyle: "hidden" as const,
@@ -191,9 +184,17 @@ export function createMainWindow(id: string = randomUUID()) {
       : {}),
     ...(process.platform === "win32"
       ? {
-          frame: false,
+          // No `titleBarOverlay` here: the renderer draws its own window
+          // controls in the title bar (see `WindowControls`).
+          // 只用 titleBarStyle: "hidden" 隐藏标题栏并保住 DWM 非客户区
+          // （系统圆角 + 边框 + 阴影 + 亚克力）。不用 frame: false，否则
+          // Windows 上会压过 titleBarStyle 做成完全无边框窗口，丢失圆角。
           titleBarStyle: "hidden" as const,
-          titleBarOverlay: overlay({ mode }),
+          // 透明背景色让 Chromium webview 透明渲染，否则 webview 默认的
+          // 不透明背景会遮挡 backgroundMaterial 的亚克力材质。不用 transparent: true，
+          // 避免触发 layered window 而禁用 DWM 系统圆角。
+          backgroundColor: "#00000000",
+          backgroundMaterial: "acrylic" as const,
         }
       : {}),
     webPreferences: {
@@ -223,10 +224,15 @@ export function createMainWindow(id: string = randomUUID()) {
   state.manage(win)
   registerWindow(win, id)
   wireFullscreen(win)
+  wireWindowMaximize(win)
   loadWindow(win, "index.html")
   wireZoom(win)
 
   win.once("ready-to-show", () => {
+    // 显式应用亚克力材质，确保构造选项中的 backgroundMaterial 生效
+    if (process.platform === "win32") {
+      win.setBackgroundMaterial("acrylic")
+    }
     win.show()
   })
 
@@ -538,6 +544,16 @@ function wireFullscreen(win: BrowserWindow) {
 
   win.on("enter-full-screen", () => send(true))
   win.on("leave-full-screen", () => send(false))
+}
+
+function wireWindowMaximize(win: BrowserWindow) {
+  const send = (maximized: boolean) => {
+    if (win.isDestroyed() || win.webContents.isDestroyed()) return
+    win.webContents.send("window-maximized-changed", maximized)
+  }
+
+  win.on("maximize", () => send(true))
+  win.on("unmaximize", () => send(false))
 }
 
 function clampZoom(value: number) {
