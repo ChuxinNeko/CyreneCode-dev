@@ -122,6 +122,7 @@ export const dict = {
   "dialog.model.search.placeholder": "Search models",
   "dialog.model.empty": "No model results",
   "dialog.model.manage": "Manage models",
+  "dialog.model.addProviderAndModel": "Add provider and models",
   "dialog.model.manage.description": "Customize which models appear in the model selector.",
   "dialog.model.manage.provider.toggle": "Toggle all {{provider}} models",
 
@@ -190,6 +191,10 @@ export const dict = {
   "provider.custom.models.name.placeholder": "Display Name",
   "provider.custom.models.remove": "Remove model",
   "provider.custom.models.add": "Add model",
+  "provider.custom.models.fetch": "Fetch models from Base URL",
+  "provider.custom.models.fetch.failed": "Failed to fetch models",
+  "provider.custom.models.fetch.empty": "The provider returned no models",
+  "provider.custom.models.fetch.baseURLRequired": "Please fill in the Base URL first",
   "provider.custom.headers.label": "Headers (optional)",
   "provider.custom.headers.key.label": "Header",
   "provider.custom.headers.key.placeholder": "Header-Name",

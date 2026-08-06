@@ -3,16 +3,138 @@ import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { Dialog } from "@opencode-ai/ui/dialog"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
+import { Popover as Kobalte } from "@kobalte/core/popover"
 import { useMutation } from "@tanstack/solid-query"
 import { TextField } from "@opencode-ai/ui/text-field"
 import { showToast } from "@/utils/toast"
-import { batch, For } from "solid-js"
+import { batch, createSignal, type ComponentProps, For, Show, type JSX } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { ExternalLink } from "@/components/external-link"
 import { useServerSDK } from "@/context/server-sdk"
 import { useServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
 import { type FormState, headerRow, modelRow, validateCustomProvider } from "./dialog-custom-provider-form"
+
+// OpenAI-compatible 提供商的模型列表接口一般为 `{baseURL}/models`，但部分提供商
+// 的 baseURL 只填到域名（https://api.example.com），此时按用户约定拼 /v1/models。
+// baseURL 以 /v1（或 /v2 等版本号）结尾时，补 /models。
+function modelsEndpoint(baseURL: string): string {
+  const base = baseURL.trim().replace(/\/+$/, "")
+  if (/\/v\d+\/models$/i.test(base) || /\/models$/i.test(base)) return base
+  if (/\/v\d+$/i.test(base)) return `${base}/models`
+  return `${base}/v1/models`
+}
+
+async function fetchProviderModels(baseURL: string, apiKey: string): Promise<string[]> {
+  const response = await fetch(modelsEndpoint(baseURL), {
+    headers: {
+      accept: "application/json",
+      ...(apiKey.trim() ? { authorization: `Bearer ${apiKey.trim()}` } : {}),
+    },
+  })
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+  const payload: unknown = await response.json()
+  const data = Array.isArray((payload as { data?: unknown })?.data) ? (payload as { data: unknown[] }).data : []
+  const ids = data.map((item) => (item as { id?: unknown })?.id).filter((id): id is string => typeof id === "string")
+  if (ids.length === 0) throw new Error("empty")
+  return ids
+}
+
+// 每个模型行一个拉取按钮：点击优先拉取 provider 的模型列表，成功后弹出 dropdown，
+// 选中某个模型后把 id 快速填充到该行的 model-id 输入框。
+type ModelFetchTriggerProps = Omit<ComponentProps<typeof Kobalte.Trigger>, "as" | "ref">
+
+function FetchModelsMenu(props: {
+  baseURL: () => string
+  apiKey: () => string
+  onSelect: (modelID: string) => void
+  trigger: (triggerProps: ModelFetchTriggerProps) => JSX.Element
+}) {
+  const language = useLanguage()
+  const [open, setOpen] = createSignal(false)
+  const [models, setModels] = createSignal<string[]>([])
+
+  // 用 busy 标志防重复拉取，不依赖 Kobalte trigger 的响应式 disabled（其 `as`
+  // 渲染函数不会随外层 baseURL/loading 信号自动重算）。
+  let busy = false
+  const close = () => setOpen(false)
+
+  const load = async () => {
+    if (busy) return
+    if (!props.baseURL().trim()) {
+      showToast({
+        title: language.t("provider.custom.models.fetch.failed"),
+        description: language.t("provider.custom.models.fetch.baseURLRequired"),
+      })
+      return
+    }
+    busy = true
+    try {
+      const ids = await fetchProviderModels(props.baseURL(), props.apiKey())
+      setModels(ids)
+      // 拉取成功后才弹出 dropdown。
+      setOpen(true)
+    } catch (err) {
+      setModels([])
+      showToast({
+        title: language.t("provider.custom.models.fetch.failed"),
+        description:
+          err instanceof Error && err.message === "empty"
+            ? language.t("provider.custom.models.fetch.empty")
+            : err instanceof Error
+              ? err.message
+              : String(err),
+      })
+    } finally {
+      busy = false
+    }
+  }
+
+  return (
+    <Kobalte
+      open={open()}
+      onOpenChange={(next) => {
+        if (!next) {
+          close()
+          return
+        }
+        // 打开时先拉取、成功后弹出（不依赖 Kobalte 自动开合）。
+        void load()
+      }}
+      modal={false}
+      placement="top-start"
+      gutter={4}
+    >
+      <Kobalte.Trigger as={(triggerProps) => props.trigger(triggerProps)} />
+      <Kobalte.Portal>
+        <Kobalte.Content class="z-50 w-64 max-h-72 min-w-0 overflow-auto rounded-md border border-border-base bg-surface-raised-stronger-non-alpha p-1 shadow-md outline-none">
+          <Kobalte.Title class="sr-only">{language.t("provider.custom.models.fetch")}</Kobalte.Title>
+          <Show
+            when={models().length > 0}
+            fallback={
+              <div class="px-3 py-4 text-13-regular text-text-weak">{language.t("provider.custom.models.fetch.empty")}</div>
+            }
+          >
+            <For each={models()}>
+              {(id) => (
+                <button
+                  type="button"
+                  class="block w-full truncate rounded px-3 py-1.5 text-left text-13-regular hover:bg-surface-transparent"
+                  onClick={() => {
+                    props.onSelect(id)
+                    close()
+                  }}
+                >
+                  {id}
+                </button>
+              )}
+            </For>
+          </Show>
+        </Kobalte.Content>
+      </Kobalte.Portal>
+    </Kobalte>
+  )
+}
 
 type Props = {
   onBack: () => void
@@ -254,15 +376,33 @@ export function CustomProviderForm(props: { autofocus?: boolean } = {}) {
                     error={m.err.name}
                   />
                 </div>
-                <IconButton
-                  type="button"
-                  icon="trash"
-                  variant="ghost"
-                  class="mt-1.5"
-                  onClick={() => removeModel(i())}
-                  disabled={form.models.length <= 1}
-                  aria-label={language.t("provider.custom.models.remove")}
-                />
+                <div class="flex flex-col gap-1.5">
+                  <FetchModelsMenu
+                    baseURL={() => form.baseURL}
+                    apiKey={() => form.apiKey}
+                    onSelect={(id) => setModel(i(), "id", id)}
+                    trigger={(triggerProps) => (
+                      <Button
+                        {...triggerProps}
+                        type="button"
+                        size="small"
+                        variant="ghost"
+                        icon="arrow-down-to-line"
+                        class="shrink-0"
+                        aria-label={language.t("provider.custom.models.fetch")}
+                      />
+                    )}
+                  />
+                  <IconButton
+                    type="button"
+                    icon="trash"
+                    variant="ghost"
+                    class="shrink-0"
+                    onClick={() => removeModel(i())}
+                    disabled={form.models.length <= 1}
+                    aria-label={language.t("provider.custom.models.remove")}
+                  />
+                </div>
               </div>
             )}
           </For>

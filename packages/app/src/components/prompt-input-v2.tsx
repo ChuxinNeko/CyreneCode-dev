@@ -4,11 +4,12 @@ import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
 import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
 import { Icon } from "@opencode-ai/ui/v2/icon"
 import { KeybindV2 } from "@opencode-ai/ui/v2/keybind-v2"
+import { MenuV2 } from "@opencode-ai/ui/v2/menu-v2"
 import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
 import type { ReferenceInfo } from "@opencode-ai/sdk/v2/client"
 import { createEffect, createMemo, on, Show } from "solid-js"
 import { ModelSelectorPopoverV2 } from "@/components/dialog-select-model"
-import { DialogSelectModelUnpaidV2 } from "@/components/dialog-select-model-unpaid-v2"
+import { useSettingsDialog } from "@/components/settings-dialog"
 import type { PromptInputProps } from "@/components/prompt-input/contracts"
 import { normalizePromptHistoryEntry, promptLength, type PromptHistoryComment } from "@/components/prompt-input/history"
 import { createPersistedPromptInputHistory } from "@/components/prompt-input/history-store"
@@ -45,7 +46,6 @@ export type PromptInputV2ComposerController = PromptInputV2Interaction & {
 }
 
 export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
-  const dialog = useDialog()
   const command = useCommand()
   const language = useLanguage()
 
@@ -61,16 +61,12 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
         modelControl={
           <PromptInputV2ModelControl
             loading={props.controller.model.loading}
-            paid={props.controller.model.paid}
             title={language.t("command.model.choose")}
             keybind={command.keybindParts("model.choose")}
             model={props.controller.model.selection}
             providerID={props.controller.model.selection.current()?.provider?.id}
             modelName={props.controller.model.selection.current()?.name ?? language.t("dialog.model.select.title")}
             onClose={props.controller.restoreFocus}
-            onUnpaidClick={() =>
-              dialog.show(() => <DialogSelectModelUnpaidV2 model={props.controller.model.selection} />)
-            }
           />
         }
       />
@@ -470,16 +466,25 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
 
 function PromptInputV2ModelControl(props: {
   loading: boolean
-  paid: boolean
   title: string
   keybind: string[]
   model: PromptInputV2ComposerController["model"]["selection"]
   providerID?: string
   modelName: string
   onClose: () => void
-  onUnpaidClick: () => void
 }) {
   const shouldAnimate = createMemo<boolean>((previous) => previous ?? props.loading)
+  const language = useLanguage()
+  const openProvidersSettings = useSettingsDialog("providers")
+
+  // Only models the user has added and enabled are listed in the dropdown, as
+  // opposed to every catalog entry owned by the connected providers.
+  const enabledModels = createMemo(() =>
+    props.model
+      .list()
+      .filter((item) => props.model.visible({ modelID: item.id, providerID: item.provider.id })),
+  )
+
   const content = () => (
     <>
       <Show when={props.providerID}>
@@ -497,6 +502,7 @@ function PromptInputV2ModelControl(props: {
       </span>
     </>
   )
+  const buttonClass = "min-w-0 max-w-[220px] justify-start ![font-weight:440] group"
   return (
     <Show when={!props.loading}>
       <TooltipV2
@@ -510,20 +516,36 @@ function PromptInputV2ModelControl(props: {
         }
       >
         <Show
-          when={props.paid}
+          when={enabledModels().length > 0}
           fallback={
-            <ButtonV2
-              data-action="prompt-model"
-              data-control-type="dialog"
-              variant="ghost-muted"
-              size="normal"
-              class="min-w-0 max-w-[220px] justify-start ![font-weight:440] group"
-              classList={{ "animate-in fade-in": shouldAnimate() }}
-              style={{ height: "28px" }}
-              onClick={props.onUnpaidClick}
-            >
-              {content()}
-            </ButtonV2>
+            <MenuV2 modal={false} placement="top-start" gutter={6}>
+              <MenuV2.Trigger
+                as={(triggerProps) => (
+                  <ButtonV2
+                    {...triggerProps}
+                    data-action="prompt-model"
+                    data-control-type="popover"
+                    variant="ghost-muted"
+                    size="normal"
+                    class={buttonClass}
+                    classList={{ "animate-in fade-in": shouldAnimate() }}
+                    style={{ height: "28px" }}
+                  >
+                    {content()}
+                  </ButtonV2>
+                )}
+              />
+              <MenuV2.Portal>
+                <MenuV2.Content class="w-[284px] rounded-md border-0 bg-v2-background-bg-layer-01 p-1 shadow-[var(--v2-elevation-floating)] focus:outline-none">
+                  <MenuV2.Item onSelect={openProvidersSettings}>
+                    <Icon name="plus" size="small" />
+                    <span class="min-w-0 flex-1 truncate leading-5">
+                      {language.t("dialog.model.addProviderAndModel")}
+                    </span>
+                  </MenuV2.Item>
+                </MenuV2.Content>
+              </MenuV2.Portal>
+            </MenuV2>
           }
         >
           <ModelSelectorPopoverV2
@@ -534,7 +556,7 @@ function PromptInputV2ModelControl(props: {
                 variant="ghost-muted"
                 size="normal"
                 style={{ height: "28px" }}
-                class="min-w-0 max-w-[220px] justify-start ![font-weight:440] group"
+                class={buttonClass}
                 classList={{ "animate-in fade-in": shouldAnimate() }}
                 data-action="prompt-model"
                 data-control-type="popover"

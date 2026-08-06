@@ -76,7 +76,8 @@ export const DialogSelectModelUnpaidV2: Component<{ model?: ModelState }> = (pro
       </DialogHeader>
       <DialogBody class="max-h-[calc(100vh_-_68px)] min-h-0 flex-none gap-0 overflow-y-auto px-2 pb-2">
         <div ref={listEl} class="flex min-h-0 flex-col">
-          <div data-section="free-models" class="flex w-full flex-col items-start pb-3">
+          <Show when={freeModels().length > 0}>
+            <div data-section="free-models" class="flex w-full flex-col items-start pb-3">
             <div class="flex h-8 w-full flex-none select-none flex-row items-center px-3 pb-2">
               <div class="flex h-5 items-center text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-muted [font-family:var(--v2-font-family-sans)] [font-variant-numeric:tabular-nums] [font-variation-settings:'slnt'_0]">
                 {language.t("dialog.model.unpaid.freeModels.title")}
@@ -117,6 +118,7 @@ export const DialogSelectModelUnpaidV2: Component<{ model?: ModelState }> = (pro
               )}
             </For>
           </div>
+          </Show>
 
           <div class="flex w-full flex-col">
             <div class="flex w-full flex-col items-start rounded-lg border-[0.5px] border-v2-border-border-muted bg-v2-background-bg-layer-02 p-2.5 pt-2">

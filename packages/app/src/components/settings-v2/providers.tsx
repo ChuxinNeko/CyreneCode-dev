@@ -195,35 +195,6 @@ export const SettingsProvidersV2: Component<{
         <div class="settings-v2-section">
           <h3 class="settings-v2-section-title">{language.t("settings.providers.section.popular")}</h3>
           <SettingsListV2>
-            <For each={popular()}>
-              {(item) => (
-                <div class="settings-v2-provider-row">
-                  <div class="settings-v2-provider-lead">
-                    <ProviderIcon
-                      id={item.id}
-                      width={PROVIDER_ICON_SIZE}
-                      height={PROVIDER_ICON_SIZE}
-                      class="settings-v2-provider-icon shrink-0"
-                    />
-                    <div class="settings-v2-provider-copy">
-                      <div class="settings-v2-provider-main">
-                        <span class="settings-v2-provider-name">{item.name}</span>
-                        <Show when={item.id === "opencode" || item.id === "opencode-go"}>
-                          <Tag>{language.t("dialog.provider.tag.recommended")}</Tag>
-                        </Show>
-                      </div>
-                      <Show when={note(item.id)}>
-                        {(key) => <p class="settings-v2-provider-description">{language.t(key())}</p>}
-                      </Show>
-                    </div>
-                  </div>
-                  <ButtonV2 size="normal" variant="neutral" icon="plus" onClick={() => connect(item.id)}>
-                    {language.t("common.connect")}
-                  </ButtonV2>
-                </div>
-              )}
-            </For>
-
             <Show when={protocol() === "v1"}>
               <div class="settings-v2-provider-row" data-component="custom-provider-section">
                 <div class="settings-v2-provider-lead">
@@ -255,6 +226,35 @@ export const SettingsProvidersV2: Component<{
                 </ButtonV2>
               </div>
             </Show>
+
+            <For each={popular()}>
+              {(item) => (
+                <div class="settings-v2-provider-row">
+                  <div class="settings-v2-provider-lead">
+                    <ProviderIcon
+                      id={item.id}
+                      width={PROVIDER_ICON_SIZE}
+                      height={PROVIDER_ICON_SIZE}
+                      class="settings-v2-provider-icon shrink-0"
+                    />
+                    <div class="settings-v2-provider-copy">
+                      <div class="settings-v2-provider-main">
+                        <span class="settings-v2-provider-name">{item.name}</span>
+                        <Show when={item.id === "opencode" || item.id === "opencode-go"}>
+                          <Tag>{language.t("dialog.provider.tag.recommended")}</Tag>
+                        </Show>
+                      </div>
+                      <Show when={note(item.id)}>
+                        {(key) => <p class="settings-v2-provider-description">{language.t(key())}</p>}
+                      </Show>
+                    </div>
+                  </div>
+                  <ButtonV2 size="normal" variant="neutral" icon="plus" onClick={() => connect(item.id)}>
+                    {language.t("common.connect")}
+                  </ButtonV2>
+                </div>
+              )}
+            </For>
           </SettingsListV2>
 
           <button type="button" class="settings-v2-providers-view-all" onClick={() => connect()}>

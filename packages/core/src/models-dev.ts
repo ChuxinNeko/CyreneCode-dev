@@ -214,11 +214,20 @@ const layer = Layer.effect(
       return text
     })
 
+    // 本 fork 不再提供 OpenCode 内置免费模型：从 models.dev 数据中剔除 opencode
+    // provider（免费匿名模型全部挂在它名下），迫使用户配置自己的 provider/模型。
+    // 三种来源（磁盘缓存 / 构建快照 / 网络拉取）都在 populate 出口统一过滤。
+    const withoutOpencode = (data: Record<string, Provider>) => {
+      const rest: Record<string, Provider> = { ...data }
+      delete rest.opencode
+      return rest
+    }
+
     const populate = Effect.gen(function* () {
       const fromDisk = yield* loadFromDisk
-      if (fromDisk) return fromDisk
+      if (fromDisk) return withoutOpencode(fromDisk)
       const snapshot = yield* loadSnapshot
-      if (snapshot) return snapshot
+      if (snapshot) return withoutOpencode(snapshot)
       if (Flag.OPENCODE_DISABLE_MODELS_FETCH) return {}
       // Flock is cross-process: concurrent opencode CLIs can race on this cache file.
       const text = yield* Effect.scoped(
@@ -227,7 +236,7 @@ const layer = Layer.effect(
           return yield* fetchAndWrite()
         }),
       )
-      return JSON.parse(text) as Record<string, Provider>
+      return withoutOpencode(JSON.parse(text) as Record<string, Provider>)
     }).pipe(Effect.withSpan("ModelsDev.populate"), Effect.orDie)
 
     const [cachedGet, invalidate] = yield* Effect.cachedInvalidateWithTTL(populate, Duration.infinity)

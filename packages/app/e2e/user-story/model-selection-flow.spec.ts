@@ -78,17 +78,29 @@ test("creates a session in a new project, connects OpenCode Go, and selects its 
   await expectAppVisible(page.locator('[data-component="prompt-input-v2"]'))
 
   const modelControl = page.locator('[data-action="prompt-model"]')
+  // The model control is a dropdown of the enabled models (no paying gate: it is
+  // a popover straight away). The connected OpenCode free model shows up listed.
   await modelControl.click()
-  await expect(page.locator('[data-section="free-models"]')).toContainText("Free models provided by OpenCode")
+  const freeModel = page.locator('[data-option-key="opencode:free-model"]')
+  await expect(freeModel).toBeVisible()
+  await expect(page.locator('[data-option-key="opencode-go:go-model-1"]')).toHaveCount(0)
 
+  // Manage models -> Connect provider to add the OpenCode Go provider.
+  await page.locator('[data-option-key="action:manage"]').click()
+  const manageModels = page.getByRole("dialog", { name: /Manage models/ })
+  await manageModels.getByRole("button", { name: "Connect provider" }).click()
   await page.locator('[data-provider-id="opencode-go"]').click()
   await page.locator('[data-input="provider-api-key"]').fill("mock-go-api-key")
   await page.locator('[data-action="provider-connect-submit"]').click()
-  await expect(page.locator('[data-component="dialog-v2"]')).toHaveCount(0)
+  await expect(page.locator('[data-input="provider-api-key"]')).toHaveCount(0)
   expect(connections).toEqual([{ integrationID: "opencode-go", body: { type: "api", key: "mock-go-api-key" } }])
 
-  await expect(modelControl).toHaveAttribute("data-control-type", "popover")
+  // Close the manage-models dialog and pick the newly connected model.
+  await manageModels.press("Escape")
+  await expect(manageModels).not.toBeVisible()
+
   await modelControl.click()
+  await expect(modelControl).toHaveAttribute("data-control-type", "popover")
   const goModel = page.locator('[data-option-key="opencode-go:go-model-1"]')
   await expect(goModel).toBeVisible()
   await goModel.click()
