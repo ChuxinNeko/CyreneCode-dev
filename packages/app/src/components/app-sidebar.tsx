@@ -38,7 +38,7 @@ export function AppSidebar() {
   return (
     <aside
       data-slot="app-sidebar"
-      class="flex h-full w-[22%] min-w-[224px] max-w-80 shrink-0 flex-col border-r border-v2-border-border-base bg-v2-background-bg-deep/70"
+      class="window-pane flex h-full w-[22%] min-w-[224px] max-w-80 shrink-0 flex-col border-r border-v2-border-border-base bg-v2-background-bg-deep/70"
     >
       {/* Header: 品牌 + 搜索 */}
       <div class="flex h-11 shrink-0 items-center gap-2 px-3">

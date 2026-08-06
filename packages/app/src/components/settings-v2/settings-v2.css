@@ -199,12 +199,23 @@
   min-width: 224px;
   max-width: 320px;
   border-right: 0.5px solid var(--v2-border-border-base);
-  background-color: color-mix(in oklab, var(--v2-background-bg-deep) 70%, transparent);
+  /* 页根 div 已提供 bg-v2-background-bg-deep/70 底色，此处透明即可（单层），
+     避免与根背景叠加成更不透明的双层；否则左侧列透明度与其余地方不一致。 */
+  background-color: transparent;
 }
 
-/* 右侧内容区不透明，遮挡亚克力，与主窗口 main 的 bg-v2-background-bg-deep 一致 */
+/* 右侧内容区：圆角卡片（与主窗口会话卡片同款 bg-base + rounded-[10px] + 阴影），
+   通过 margin 内嵌到半透明底面上，呈 WinUI3 式“镶嵌卡片”。
+   注意 overflow 不能是 hidden：内容滚动容器就是这个元素本身
+   （.settings-v2-panel 自带 overflow-y:auto + 隐藏滚动条），
+   用 overflow-x:hidden + overflow-y:auto 保留纵向滚动同时裁剪圆角。 */
 [data-component="tabs-v2"][data-settings-page] [data-slot="tabs-v2-content"] {
-  background-color: var(--v2-background-bg-deep);
+  margin: 8px;
+  background-color: var(--v2-background-bg-base);
+  border-radius: 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-shadow: var(--v2-elevation-raised);
 }
 
 .settings-v2-nav-footer {

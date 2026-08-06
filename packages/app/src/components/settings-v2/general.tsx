@@ -3,54 +3,26 @@ import { createMediaQuery } from "@solid-primitives/media"
 import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
 import { SelectV2 } from "@opencode-ai/ui/v2/select-v2"
 import { Switch } from "@opencode-ai/ui/v2/switch-v2"
-import { TextInputV2 } from "@opencode-ai/ui/v2/text-input-v2"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useUpdaterAction } from "../updater-action"
 import { useSettings } from "@/context/settings"
-import { ExternalLink } from "../external-link"
 import { SettingsListV2 } from "./parts/list"
 import { SettingsRowV2 } from "./parts/row"
 import { LayoutRetirementNotice, LayoutTransitionToggle } from "./interface-transition"
 import {
-  createAppearanceSettingsController,
   createPermissionScopeController,
   createShellOptions,
   createShellSettingsController,
   createSoundSettingsController,
   soundOptions,
-  type AppearanceSettingsController,
   type PermissionScopeController,
   type ShellSettingsController,
   type SoundSettingsController,
 } from "./general-controllers"
 import "./settings-v2.css"
 
-const schemeOptions: ("system" | "light" | "dark")[] = ["system", "light", "dark"]
-const fontSettings = {
-  ui: {
-    action: "settings-ui-font",
-    title: "settings.general.row.uiFont.title",
-    description: "settings.general.row.uiFont.description",
-    font: "ui",
-    input: "setUI",
-  },
-  code: {
-    action: "settings-code-font",
-    title: "settings.general.row.font.title",
-    description: "settings.general.row.font.description",
-    font: "code",
-    input: "setCode",
-  },
-  terminal: {
-    action: "settings-terminal-font",
-    title: "settings.general.row.terminalFont.title",
-    description: "settings.general.row.terminalFont.description",
-    font: "terminal",
-    input: "setTerminal",
-  },
-} as const
 const soundSettings = {
   agent: {
     action: "settings-sounds-agent",
@@ -115,92 +87,6 @@ const ShellSetting: Component<{ controller: ShellSettingsController }> = (props)
         }}
         onSelect={(option) => option && props.controller.select(option.value)}
       />
-    </SettingsRowV2>
-  )
-}
-
-const AppearanceSection: Component<{ controller: AppearanceSettingsController }> = (props) => {
-  const language = useLanguage()
-  return (
-    <div class="settings-v2-section">
-      <h3 class="settings-v2-section-title">{language.t("settings.general.section.appearance")}</h3>
-      <SettingsListV2>
-        <SettingsRowV2
-          title={language.t("settings.general.row.colorScheme.title")}
-          description={language.t("settings.general.row.colorScheme.description")}
-        >
-          <SelectV2
-            appearance="inline"
-            data-action="settings-color-scheme"
-            options={schemeOptions}
-            current={schemeOptions.find((option) => option === props.controller.scheme.current())}
-            placement="bottom-end"
-            gutter={6}
-            label={(option) => {
-              if (option === "system") return language.t("theme.scheme.system")
-              if (option === "light") return language.t("theme.scheme.light")
-              return language.t("theme.scheme.dark")
-            }}
-            onSelect={(option) => option && props.controller.scheme.select(option)}
-          />
-        </SettingsRowV2>
-
-        <SettingsRowV2
-          title={language.t("settings.general.row.theme.title")}
-          description={
-            <>
-              {language.t("settings.general.row.theme.description")}{" "}
-              <ExternalLink class="settings-v2-link" href="https://opencode.ai/docs/themes/">
-                {language.t("common.learnMore")}
-              </ExternalLink>
-            </>
-          }
-        >
-          <SelectV2
-            appearance="inline"
-            data-action="settings-theme"
-            options={props.controller.theme.options()}
-            current={props.controller.theme.current()}
-            placement="bottom-end"
-            gutter={6}
-            value={(option) => option.id}
-            label={(option) => option.name}
-            onSelect={props.controller.theme.select}
-          />
-        </SettingsRowV2>
-
-        <FontSetting kind="ui" fonts={props.controller.fonts} />
-        <FontSetting kind="code" fonts={props.controller.fonts} />
-        <FontSetting kind="terminal" fonts={props.controller.fonts} />
-      </SettingsListV2>
-    </div>
-  )
-}
-
-const FontSetting: Component<{
-  kind: "ui" | "code" | "terminal"
-  fonts: AppearanceSettingsController["fonts"]
-}> = (props) => {
-  const language = useLanguage()
-  const config = () => fontSettings[props.kind]
-  return (
-    <SettingsRowV2 title={language.t(config().title)} description={language.t(config().description)}>
-      <div class="w-full sm:w-[220px]">
-        <TextInputV2
-          data-action={config().action}
-          type="text"
-          appearance="base"
-          value={props.fonts[config().font]().value}
-          onInput={(event) => props.fonts[config().input](event.currentTarget.value)}
-          placeholder={props.fonts[config().font]().placeholder}
-          spellcheck={false}
-          autocorrect="off"
-          autocomplete="off"
-          autocapitalize="off"
-          aria-label={language.t(config().title)}
-          style={{ "font-family": props.fonts[config().font]().family }}
-        />
-      </div>
     </SettingsRowV2>
   )
 }
@@ -282,7 +168,6 @@ export const SettingsGeneralV2: Component<{
   const updater = useUpdaterAction()
   const permissionScope = createPermissionScopeController(() => props.sessionID)
   const shell = createShellSettingsController()
-  const appearance = createAppearanceSettingsController()
   const sounds = createSoundSettingsController()
   const desktop = createMemo(() => platform.platform === "desktop")
 
@@ -551,8 +436,6 @@ export const SettingsGeneralV2: Component<{
         </Show>
 
         <GeneralSection />
-
-        <AppearanceSection controller={appearance} />
 
         <NotificationsSection />
 

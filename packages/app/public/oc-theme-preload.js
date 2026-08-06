@@ -15,6 +15,14 @@
 
   document.documentElement.dataset.theme = themeId
   document.documentElement.dataset.colorScheme = mode
+  // 提前把窗口材质属性设为实际值（mica | acrylic | default），避免首屏闪变：
+  // index.css 据此决定 html 是否透明 / 云母面板遮罩强度。
+  //  - default：html 不透明，遮住原生材质；
+  //  - mica/acrylic：html 透明，透出原生材质。
+  var material = localStorage.getItem("opencode-window-material")
+  if (material === "mica" || material === "acrylic" || material === "default") {
+    document.documentElement.setAttribute("data-window-material", material)
+  }
   // Electron + Windows 11 使用原生亚克力材质，需要透明背景，跳过不透明背景色设置；
   // 其他环境保持不透明背景色以防主题加载前的白闪。
   var isElectronWindows = /Electron/.test(navigator.userAgent) && /Windows/.test(navigator.userAgent)

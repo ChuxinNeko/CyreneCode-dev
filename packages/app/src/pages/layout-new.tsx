@@ -52,7 +52,7 @@ export default function NewLayout(props: ParentProps) {
           fallback={
             <>
               <AppSidebar />
-              <main class="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col items-start bg-v2-background-bg-deep contain-strict">
+              <main class="window-pane flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col items-start bg-v2-background-bg-deep/70 contain-strict">
                 <Suspense>{props.children}</Suspense>
               </main>
             </>

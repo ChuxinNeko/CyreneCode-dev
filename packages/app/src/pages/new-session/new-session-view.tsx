@@ -14,6 +14,7 @@ import {
   type PromptProjectController,
 } from "@/components/prompt-project-selector"
 import { StatusPopoverV2 } from "@/components/status-popover"
+import { SuggestionCards } from "@/components/suggestion-cards"
 import { useLanguage } from "@/context/language"
 import { useSDK } from "@/context/sdk"
 import { useServerSync } from "@/context/server-sync"
@@ -38,6 +39,14 @@ export function NewSessionView(props: {
       >
         <div class="pointer-events-none absolute inset-x-0 top-[28%] flex justify-center px-6">
           <TimeGreeting />
+        </div>
+        <div class="pointer-events-none absolute inset-x-0 top-[40%] flex justify-center px-6">
+          <SuggestionCards
+            onSelect={(prompt) => {
+              props.input.onInput(prompt)
+              props.input.restoreFocus()
+            }}
+          />
         </div>
         <div class="absolute inset-x-0 bottom-0 flex justify-center px-6 pb-8">
           <div class={NEW_SESSION_CONTENT_WIDTH}>

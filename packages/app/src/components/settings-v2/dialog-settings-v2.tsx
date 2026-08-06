@@ -5,6 +5,7 @@ import { Icon } from "@opencode-ai/ui/icon"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { SettingsGeneralV2 } from "./general"
+import { SettingsAppearanceV2 } from "./appearance"
 import { SettingsKeybinds } from "../settings-keybinds"
 import { SettingsProvidersV2 } from "./providers"
 import { SettingsModelsV2 } from "./models"
@@ -65,6 +66,10 @@ export const DialogSettings: Component<{
                       <Icon name="keyboard" />
                       {language.t("settings.tab.shortcuts")}
                     </TabsV2.Trigger>
+                    <TabsV2.Trigger value="appearance">
+                      <Icon name="eye" />
+                      {language.t("settings.tab.appearance")}
+                    </TabsV2.Trigger>
                   </div>
                 </div>
 
@@ -98,6 +103,9 @@ export const DialogSettings: Component<{
         </TabsV2.Content>
         <TabsV2.Content value="shortcuts" class="settings-v2-panel">
           <SettingsKeybinds v2 />
+        </TabsV2.Content>
+        <TabsV2.Content value="appearance" class="settings-v2-panel">
+          <SettingsAppearanceV2 />
         </TabsV2.Content>
         <TabsV2.Content value="servers" class="settings-v2-panel">
           <SettingsServersV2 />
@@ -141,7 +149,7 @@ export const SettingsPage: Component<{
   const showProviders = () => setTab("providers")
 
   return (
-    <div class="flex h-full w-full">
+    <div class="window-pane flex h-full w-full bg-v2-background-bg-deep/70">
       <TabsV2
         orientation="vertical"
         variant="settings"
@@ -176,6 +184,10 @@ export const SettingsPage: Component<{
                       <Icon name="keyboard" />
                       {language.t("settings.tab.shortcuts")}
                     </TabsV2.Trigger>
+                    <TabsV2.Trigger value="appearance">
+                      <Icon name="eye" />
+                      {language.t("settings.tab.appearance")}
+                    </TabsV2.Trigger>
                   </div>
                 </div>
 
@@ -209,6 +221,9 @@ export const SettingsPage: Component<{
         </TabsV2.Content>
         <TabsV2.Content value="shortcuts" class="settings-v2-panel">
           <SettingsKeybinds v2 />
+        </TabsV2.Content>
+        <TabsV2.Content value="appearance" class="settings-v2-panel">
+          <SettingsAppearanceV2 />
         </TabsV2.Content>
         <TabsV2.Content value="servers" class="settings-v2-panel">
           <SettingsServersV2 />

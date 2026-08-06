@@ -12,6 +12,23 @@
   #root {
     background-color: transparent !important;
   }
+
+  /* "窗口材质 = 默认"（非亚克力/云母）：html 改回不透明主题背景（bg-deep），
+     遮住原生材质，呈现普通不透明窗口；body/#root 仍透明透出 html。
+     data-window-material 由 window-material 模块 / oc-theme-preload 设置。 */
+  html[data-window-material="default"] {
+    background-color: var(--v2-background-bg-deep) !important;
+  }
+}
+
+/* 云母模式：面板默认的 bg-deep/70 遮罩太重，把云母背板压到几乎看不见。
+   Mica Alt 的色调本就更强，这里再把侧边栏/主内容/标题栏的初层遮罩降到 45%，
+   让桌面云母透出更多、更接近 Windows 资源管理器的通透感。
+   （放在 @layer base 之外、作为无层规则：无层作者样式优先于所有 @layer，
+    以盖过 Tailwind 工具类 .bg-v2-background-bg-deep/70。）
+   亚克力/默认模式保持原 70% 遮罩不变。 */
+html[data-window-material="mica"] .window-pane {
+  background-color: color-mix(in srgb, var(--v2-background-bg-deep) 45%, transparent);
 }
 
 @font-face {

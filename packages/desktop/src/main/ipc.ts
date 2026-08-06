@@ -4,6 +4,7 @@ import { basename, join } from "node:path"
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from "electron"
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron"
 import type { DesktopMenuAction } from "@opencode-ai/app/desktop-menu"
+import type { WindowMaterial } from "@opencode-ai/app"
 import { parseDesktopNativeBundle, type DesktopNativeBundle } from "@opencode-ai/app/i18n/desktop-native"
 
 import type { FatalRendererError, ServerReadyData, TitlebarTheme } from "../preload/types"
@@ -17,6 +18,7 @@ import {
   openExternalURL,
   openLocalFileURL,
   setPinchZoomEnabled,
+  setWindowMaterial,
   setTitlebar,
   updateTitlebar,
 } from "./windows"
@@ -49,6 +51,7 @@ type Deps = {
   updater: UpdaterController
   showUpdater: () => Promise<void> | void
   setBackgroundColor: (color: string) => void
+  setWindowMaterial: (material: WindowMaterial) => void
   exportDebugLogs: () => Promise<string>
   recordFatalRendererError: (error: FatalRendererError) => Promise<void> | void
   setNativeTranslations: (bundle: DesktopNativeBundle) => void
@@ -95,6 +98,9 @@ export function registerIpcHandlers(deps: Deps) {
   ipcMain.handle("updater-check", () => deps.updater.check())
   ipcMain.handle("updater-install", () => deps.updater.install())
   ipcMain.handle("set-background-color", (_event: IpcMainInvokeEvent, color: string) => deps.setBackgroundColor(color))
+  ipcMain.handle("set-window-material", (_event: IpcMainInvokeEvent, material: WindowMaterial) =>
+    deps.setWindowMaterial(material),
+  )
   ipcMain.handle("export-debug-logs", () => deps.exportDebugLogs())
   ipcMain.handle("set-force-focus", (event: IpcMainInvokeEvent, enabled: boolean) =>
     setForceFocus(event.sender, enabled),

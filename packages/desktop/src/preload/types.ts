@@ -1,4 +1,5 @@
 import type { DesktopMenuAction } from "@opencode-ai/app/desktop-menu"
+import type { WindowMaterial } from "@opencode-ai/app"
 import type { WslServersPlatform } from "@opencode-ai/app/wsl/types"
 import type { UpdaterState } from "@opencode-ai/app/updater"
 import type { DesktopNativeBundle } from "@opencode-ai/app/i18n/desktop-native"
@@ -111,6 +112,7 @@ export type ElectronAPI = {
   setTitlebar: (theme: TitlebarTheme) => Promise<void>
   runDesktopMenuAction: (action: DesktopMenuAction) => Promise<void>
   setBackgroundColor: (color: string) => Promise<void>
+  setWindowMaterial: (material: WindowMaterial) => Promise<void>
   exportDebugLogs: () => Promise<string>
   setForceFocus: (enabled: boolean) => Promise<void>
   recordFatalRendererError: (error: FatalRendererError) => Promise<void>

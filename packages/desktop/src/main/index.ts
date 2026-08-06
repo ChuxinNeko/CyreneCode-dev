@@ -39,6 +39,7 @@ import {
   setRelaunchHandler,
   setAppQuitting,
   setBackgroundColor,
+  setWindowMaterial,
   setDockIcon,
   restoreMainWindows,
 } from "./windows"
@@ -305,6 +306,7 @@ const main = Effect.gen(function* () {
     updater,
     showUpdater: () => showUpdaterDialog(updater, true),
     setBackgroundColor: (color) => setBackgroundColor(color),
+    setWindowMaterial: (material) => setWindowMaterial(material),
     exportDebugLogs: () => exportDebugLogs(),
     recordFatalRendererError: (error) => writeLog("renderer", "fatal renderer error", { ...error }, "error"),
     setNativeTranslations: (bundle) => {

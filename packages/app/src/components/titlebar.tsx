@@ -173,6 +173,7 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
       classList={{
         "shrink-0 relative flex flex-row": true,
         "h-9 bg-v2-background-bg-deep/70 overflow-visible": useV2Titlebar(),
+        "window-pane": useV2Titlebar(),
         "h-10 bg-background-base overflow-hidden": !useV2Titlebar(),
         "order-last": bottom(),
       }}
@@ -382,7 +383,7 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
                     class="!w-9 shrink-0"
                     icon={<IconV2 name="grid-plus" />}
                     state={layout.route().type === "home" ? "pressed" : undefined}
-                    onClick={toggleHome}
+                    onClick={openNewTab}
                     aria-label={language.t("home.title")}
                     aria-pressed={layout.route().type === "home"}
                   />

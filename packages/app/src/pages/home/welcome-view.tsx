@@ -1,5 +1,6 @@
-import { createMemo, createSignal, For, Show } from "solid-js"
+import { createMemo, createSignal, Show } from "solid-js"
 import { StatusPopoverV2 } from "@/components/status-popover"
+import { SuggestionCards } from "@/components/suggestion-cards"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
@@ -9,35 +10,6 @@ import { createHomeController } from "@/pages/home/home-controller"
 import { displayName, homeProjectDirectories } from "@/pages/layout/helpers"
 
 const WELCOME_CONTENT_WIDTH = "w-full max-w-[720px] px-0"
-
-type WelcomeCard = {
-  emoji: string
-  title: string
-  prompt: string
-}
-
-const CARDS: WelcomeCard[] = [
-  {
-    emoji: "📢",
-    title: "探索并理解代码",
-    prompt: "请探索并理解这个项目的代码，总结它的整体架构、关键模块和核心实现思路。",
-  },
-  {
-    emoji: "🔨",
-    title: "构建新功能、应用或工具",
-    prompt: "请帮助我构建一个新功能、应用或工具。",
-  },
-  {
-    emoji: "🔄",
-    title: "审查代码并提出修改建议",
-    prompt: "请审查当前项目的代码，找出存在的问题并给出具体的修改建议。",
-  },
-  {
-    emoji: "🐞",
-    title: "修复问题和失败",
-    prompt: "请排查并修复当前项目中存在的问题和失败。",
-  },
-]
 
 export function WelcomeView() {
   const home = createHomeController()
@@ -85,7 +57,7 @@ export function WelcomeView() {
     <div class="flex h-full w-full min-w-0 flex-col overflow-hidden">
       {/* 顶部状态栏 */}
       <div class="flex h-10 shrink-0 items-center justify-end gap-2 px-4">
-        <StatusPopoverV2 />
+        <StatusPopoverV2 scope="server" />
         <Show when={platform.version}>
           <span class="text-[13px] leading-none tracking-[-0.04px] text-v2-text-text-muted [font-weight:530]">
             v{platform.version}
@@ -99,25 +71,7 @@ export function WelcomeView() {
         <h1 class="text-center text-[40px] font-semibold leading-tight text-v2-text-text-base">
           我们该构建什么？
         </h1>
-        <div class="grid w-full max-w-[600px] grid-cols-1 gap-3 sm:grid-cols-2">
-          <For each={CARDS}>
-            {(card) => (
-              <button
-                type="button"
-                data-component="welcome-card"
-                class="flex min-h-14 cursor-pointer items-center gap-3 rounded-[10px] bg-v2-background-bg-base px-4 py-3 text-left shadow-[var(--v2-elevation-raised)] transition-[background-color,box-shadow,transform] duration-150 ease-in-out hover:bg-v2-background-bg-layer-01 hover:shadow-[var(--v2-elevation-raised-hover)] focus-visible:outline-none"
-                onClick={() => startSession(card.prompt)}
-              >
-                <span class="shrink-0 text-xl leading-none" aria-hidden="true">
-                  {card.emoji}
-                </span>
-                <span class="min-w-0 text-[14px] leading-5 tracking-[-0.04px] text-v2-text-text-base [font-weight:530]">
-                  {card.title}
-                </span>
-              </button>
-            )}
-          </For>
-        </div>
+        <SuggestionCards onSelect={startSession} />
       </div>
 
       {/* 底部输入面板 */}

@@ -14,6 +14,8 @@ import {
   useCommand,
   useWslServers,
   useLanguage,
+  applyWindowMaterialAttribute,
+  readWindowMaterial,
 } from "@opencode-ai/app"
 import type { UpdaterState } from "@opencode-ai/app/updater"
 import * as Sentry from "@sentry/solid"
@@ -303,6 +305,10 @@ const createPlatform = (windowState: DesktopWindowState): Platform => {
 
     setPinchZoomEnabled,
 
+    setWindowMaterial: (material) => {
+      if ("setWindowMaterial" in window.api) return window.api.setWindowMaterial(material)
+    },
+
     runDesktopMenuAction,
 
     checkAppExists: async (appName: string) => {
@@ -371,6 +377,16 @@ function DesktopRoot(props: { windowState: DesktopWindowState }) {
       if (bg) {
         void window.api.setBackgroundColor(bg)
       }
+    })
+
+    // 把持久化的窗口材质同步到原生窗口（html 的 data-window-material 属性在
+    // oc-theme-preload 中已提前设置，避免首屏白闪）。
+    createEffect(() => {
+      const material = readWindowMaterial()
+      applyWindowMaterialAttribute(material)
+      // preload 由 electron-vite 单独构建，渲染进程 HMR 期间可能尚缺该方法；
+      // 用存在性守卫避免旧 preload 阶段抛错。
+      if ("setWindowMaterial" in window.api) void window.api.setWindowMaterial(material)
     })
 
     return null
