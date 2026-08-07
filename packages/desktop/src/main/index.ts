@@ -43,6 +43,7 @@ import {
   setDockIcon,
   restoreMainWindows,
 } from "./windows"
+import { destroyPetWindow, registerPetProtocol, syncPetWindow } from "./pet"
 import { createWslServersController } from "./wsl/servers"
 import { registerWslIpcHandlers } from "./wsl/ipc"
 import { spawnWslSidecar } from "./wsl/sidecar"
@@ -271,6 +272,7 @@ const main = Effect.gen(function* () {
   )
   app.setAsDefaultProtocolClient("opencode")
   registerRendererProtocol()
+  registerPetProtocol()
   setDockIcon()
   const updater = setupAutoUpdater(stopSidecars)
   const menuDeps = {
@@ -412,6 +414,8 @@ const main = Effect.gen(function* () {
 
   const windows = restoreMainWindows()
   if (windows.length) createMenu(menuDeps)
+  syncPetWindow()
+  app.once("will-quit", () => destroyPetWindow())
 })
 
 Effect.runFork(main)

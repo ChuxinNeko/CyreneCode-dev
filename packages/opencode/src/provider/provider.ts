@@ -1742,6 +1742,9 @@ const layer = Layer.effect(
         const headerTimeout = options["headerTimeout"]
         delete options["chunkTimeout"]
         delete options["headerTimeout"]
+        // route 只用于自定义 provider 表单决定 npm 包(chat → openai-compatible / responses → openai),
+        // 运行时不传给 SDK 工厂,避免未知字段被当作 model settings。
+        delete options["route"]
 
         options["fetch"] = async (input: any, init?: BunFetchRequestInit) => {
           const fetchFn = customFetch ?? fetch

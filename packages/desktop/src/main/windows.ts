@@ -43,6 +43,19 @@ protocol.registerSchemesAsPrivileged([
       stream: true,
     },
   },
+  {
+    // Serves bundled desktop-pet assets (spritesheets, manifests) to the pet window.
+    scheme: "oc-pet",
+    privileges: {
+      secure: true,
+      standard: true,
+      supportFetchAPI: true,
+      stream: true,
+      // The pet window origin (localhost in dev, oc://renderer packaged) is
+      // always cross-origin relative to this scheme.
+      corsEnabled: true,
+    },
+  },
 ])
 
 let backgroundColor: string | undefined
@@ -139,9 +152,22 @@ export function setAppQuitting(quitting = true) {
   registry.setQuitting(quitting)
 }
 
+// Windows excluded from the global background color / material sync, e.g. the
+// transparent pet overlay — applying an acrylic material or opaque background
+// color to it would destroy its transparency.
+const backgroundSyncExempt = new WeakSet<BrowserWindow>()
+
+export function exemptFromBackgroundSync(win: BrowserWindow) {
+  backgroundSyncExempt.add(win)
+}
+
+function backgroundSyncTargets() {
+  return BrowserWindow.getAllWindows().filter((win) => !win.isDestroyed() && !backgroundSyncExempt.has(win))
+}
+
 export function setBackgroundColor(color: string) {
   backgroundColor = color
-  BrowserWindow.getAllWindows().forEach((win) => {
+  backgroundSyncTargets().forEach((win) => {
     // Windows + 亚克力/云母：材质需要透明背景，跳过不透明背景色设置；
     // Windows + 默认材质：与其余平台一样应用不透明背景色。
     const apply = process.platform !== "win32" || windowMaterial === "default"
@@ -191,7 +217,7 @@ export function updateTitlebar(_win: BrowserWindow) {}
 
 export function setPinchZoomEnabled(enabled: boolean) {
   getStore().set(PINCH_ZOOM_ENABLED_KEY, enabled)
-  for (const win of BrowserWindow.getAllWindows()) {
+  for (const win of backgroundSyncTargets()) {
     pinchZoomEnabled.set(win, enabled)
     win.webContents.send("pinch-zoom-enabled-changed", enabled)
     if (!enabled && win.webContents.getZoomFactor() !== 1) win.webContents.setZoomFactor(1)
@@ -206,7 +232,7 @@ export function getPinchZoomEnabled() {
 export function setWindowMaterial(material: WindowMaterial) {
   windowMaterial = material
   getStore().set(WINDOW_MATERIAL_KEY, material)
-  BrowserWindow.getAllWindows().forEach((win) => {
+  backgroundSyncTargets().forEach((win) => {
     if (process.platform !== "win32") return
     if (material === "default") {
       win.setBackgroundMaterial("none")
@@ -264,7 +290,7 @@ export function createMainWindow(id: string = randomUUID()) {
     height: state.height,
     show: false,
     autoHideMenuBar: true,
-    title: "CyreneCode",
+    title: "NekoCode",
     icon: iconPath(),
     // Windows 11: 亚克力材质需要透明背景（在下方 win32 分支用 #00000000）；
     // 其他平台保持不透明背景色。
@@ -445,7 +471,7 @@ export function registerRendererProtocol() {
   })
 }
 
-function loadWindow(win: BrowserWindow, html: string) {
+export function loadWindow(win: BrowserWindow, html: string) {
   const devUrl = process.env.ELECTRON_RENDERER_URL
   if (devUrl) {
     const url = new URL(html, devUrl)

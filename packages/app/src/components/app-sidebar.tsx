@@ -44,7 +44,7 @@ export function AppSidebar() {
       <div class="flex h-11 shrink-0 items-center gap-2 px-3">
         <Mark class="size-5 shrink-0" />
         <span class="min-w-0 truncate text-[13px] font-semibold tracking-[-0.04px] text-v2-text-text-base">
-          CyreneCode
+          NekoCode
         </span>
         <div class="flex-1" />
         <button

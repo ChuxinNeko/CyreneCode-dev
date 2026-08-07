@@ -11,7 +11,7 @@ describe("validateCustomProvider", () => {
         name: " Custom Provider ",
         baseURL: "https://api.example.com ",
         apiKey: " {env: CUSTOM_PROVIDER_KEY} ",
-        models: [{ row: "m0", id: " model-a ", name: " Model A ", err: {} }],
+        models: [{ row: "m0", id: " model-a ", name: " Model A ", context: "", err: {} }],
         headers: [
           { row: "h0", key: " X-Test ", value: " enabled ", err: {} },
           { row: "h1", key: "", value: "", err: {} },
@@ -33,6 +33,7 @@ describe("validateCustomProvider", () => {
         env: ["CUSTOM_PROVIDER_KEY"],
         options: {
           baseURL: "https://api.example.com",
+          route: "chat",
           headers: {
             "X-Test": "enabled",
           },
@@ -52,8 +53,8 @@ describe("validateCustomProvider", () => {
         baseURL: "https://api.example.com",
         apiKey: "secret",
         models: [
-          { row: "m0", id: "model-a", name: "Model A", err: {} },
-          { row: "m1", id: "model-a", name: "Model A 2", err: {} },
+          { row: "m0", id: "model-a", name: "Model A", context: "", err: {} },
+          { row: "m1", id: "model-a", name: "Model A 2", context: "", err: {} },
         ],
         headers: [
           { row: "h0", key: "Authorization", value: "one", err: {} },
@@ -75,6 +76,35 @@ describe("validateCustomProvider", () => {
     expect(result.headers[1]).toEqual({
       key: "provider.custom.error.duplicate",
       value: undefined,
+    })
+  })
+
+  test("routes responses config through @ai-sdk/openai", () => {
+    const result = validateCustomProvider({
+      form: {
+        providerID: "my-responses",
+        name: "Responses Provider",
+        baseURL: "https://api.example.com/v1",
+        apiKey: "secret",
+        route: "responses",
+        models: [{ row: "m0", id: "gpt-5-latest", name: "GPT-5", context: "", err: {} }],
+        headers: [{ row: "h0", key: "", value: "", err: {} }],
+        err: {},
+      },
+      t,
+      disabledProviders: [],
+      existingProviderIDs: new Set(),
+    })
+
+    expect(result.result).toMatchObject({
+      providerID: "my-responses",
+      config: {
+        npm: "@ai-sdk/openai",
+        options: {
+          baseURL: "https://api.example.com/v1",
+          route: "responses",
+        },
+      },
     })
   })
 })

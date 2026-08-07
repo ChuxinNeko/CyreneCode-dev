@@ -2,5 +2,16 @@
   "id": "taffy",
   "displayName": "Taffy",
   "description": "A cute chibi digital pet inspired by the VTuber Ace Taffy, a pink-haired detective-inventor.",
-  "spritesheetPath": "spritesheet.webp"
+  "spritesheetPath": "spritesheet.webp",
+  "frame": {
+    "width": 192,
+    "height": 208,
+    "columns": 8,
+    "rows": 9
+  },
+  "animations": {
+    "idle": { "frames": [0, 1, 2, 3, 4, 5], "fps": 5, "loop": true },
+    "walk": { "frames": [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], "fps": 12, "loop": true },
+    "react": { "frames": [24, 25, 26, 27], "fps": 10, "loop": false }
+  }
 }

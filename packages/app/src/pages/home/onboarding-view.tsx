@@ -31,7 +31,7 @@ export function OnboardingView(props: { onDismiss: () => void }) {
             <Icon name="settings-gear" class="size-7 text-v2-icon-icon-accent" />
           </div>
           <h1 class="text-[32px] font-semibold leading-tight text-v2-text-text-base tracking-[-0.04px]">
-            欢迎使用 CyreneCode
+            欢迎使用 NekoCode
           </h1>
           <p class="max-w-[420px] text-[14px] leading-6 text-v2-text-text-muted">
             首次使用前，请先配置一个模型提供方。本版本不再内置免费模型，连接你常用的

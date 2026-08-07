@@ -1,4 +1,4 @@
-import { Component, createMemo, createSignal, startTransition } from "solid-js"
+import { Component, Show, createMemo, createSignal, startTransition } from "solid-js"
 import { Dialog } from "@opencode-ai/ui/v2/dialog-v2"
 import { TabsV2 } from "@opencode-ai/ui/v2/tabs-v2"
 import { Icon } from "@opencode-ai/ui/icon"
@@ -6,6 +6,7 @@ import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { SettingsGeneralV2 } from "./general"
 import { SettingsAppearanceV2 } from "./appearance"
+import { SettingsPetV2 } from "./pet"
 import { SettingsKeybinds } from "../settings-keybinds"
 import { SettingsModelsV2 } from "./models"
 import "./settings-v2.css"
@@ -63,6 +64,12 @@ export const DialogSettings: Component<{
                       <Icon name="eye" />
                       {language.t("settings.tab.appearance")}
                     </TabsV2.Trigger>
+                    <Show when={platform.platform === "desktop"}>
+                      <TabsV2.Trigger value="pet">
+                        <Icon name="heart" />
+                        {language.t("settings.tab.pet")}
+                      </TabsV2.Trigger>
+                    </Show>
                   </div>
                 </div>
 
@@ -96,6 +103,9 @@ export const DialogSettings: Component<{
         <TabsV2.Content value="appearance" class="settings-v2-panel">
           <SettingsAppearanceV2 />
         </TabsV2.Content>
+        <TabsV2.Content value="pet" class="settings-v2-panel">
+          <SettingsPetV2 />
+        </TabsV2.Content>
         <TabsV2.Content value="servers" class="settings-v2-panel">
           <SettingsServersV2 />
         </TabsV2.Content>
@@ -108,7 +118,7 @@ export const DialogSettings: Component<{
 }
 
 // 全屏设置页面：覆盖 titlebar 下方整个窗口区域，替代原 Dialog 弹窗。
-// 左侧 tab 列表顶部以"返回主窗口"按钮替代原侧边栏 "CyreneCode" 标题位置。
+// 左侧 tab 列表顶部以"返回主窗口"按钮替代原侧边栏 "NekoCode" 标题位置。
 export const SettingsPage: Component<{
   sessionID?: string
   defaultValue?: string
@@ -171,6 +181,12 @@ export const SettingsPage: Component<{
                       <Icon name="eye" />
                       {language.t("settings.tab.appearance")}
                     </TabsV2.Trigger>
+                    <Show when={platform.platform === "desktop"}>
+                      <TabsV2.Trigger value="pet">
+                        <Icon name="heart" />
+                        {language.t("settings.tab.pet")}
+                      </TabsV2.Trigger>
+                    </Show>
                   </div>
                 </div>
 
@@ -203,6 +219,9 @@ export const SettingsPage: Component<{
         </TabsV2.Content>
         <TabsV2.Content value="appearance" class="settings-v2-panel">
           <SettingsAppearanceV2 />
+        </TabsV2.Content>
+        <TabsV2.Content value="pet" class="settings-v2-panel">
+          <SettingsPetV2 />
         </TabsV2.Content>
         <TabsV2.Content value="servers" class="settings-v2-panel">
           <SettingsServersV2 />

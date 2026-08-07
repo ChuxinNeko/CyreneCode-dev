@@ -309,6 +309,13 @@ const createPlatform = (windowState: DesktopWindowState): Platform => {
       if ("setWindowMaterial" in window.api) return window.api.setWindowMaterial(material)
     },
 
+    pet: {
+      getConfig: () => window.api.petGetConfig(),
+      setEnabled: (enabled) => window.api.petSetEnabled(enabled),
+      setCharacter: (character) => window.api.petSetCharacter(character),
+      list: () => window.api.petList(),
+    },
+
     runDesktopMenuAction,
 
     checkAppExists: async (appName: string) => {

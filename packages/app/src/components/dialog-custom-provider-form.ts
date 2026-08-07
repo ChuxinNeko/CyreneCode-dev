@@ -1,5 +1,11 @@
 const PROVIDER_ID = /^[a-z0-9][a-z0-9-_]*$/
 const OPENAI_COMPATIBLE = "@ai-sdk/openai-compatible"
+// OpenAI Responses API 走原生 OpenAI SDK;与 OPENAI_COMPATIBLE 互斥,
+// 由用户在下拉里选择 (route)。SDK 的 languageModel() 分别请求
+// {baseURL}/chat/completions 与 {baseURL}/responses。
+const OPENAI_NATIVE = "@ai-sdk/openai"
+
+export type CustomRoute = "chat" | "responses"
 
 type Translator = (key: string, vars?: Record<string, string | number | boolean>) => string
 
@@ -34,6 +40,7 @@ export type FormState = {
   name: string
   baseURL: string
   apiKey: string
+  route?: CustomRoute
   models: ModelRow[]
   headers: HeaderRow[]
   err: {
@@ -55,6 +62,7 @@ export function validateCustomProvider(input: ValidateArgs) {
   const name = input.form.name.trim()
   const baseURL = input.form.baseURL.trim()
   const apiKey = input.form.apiKey.trim()
+  const route = input.form.route ?? "chat"
 
   const env = apiKey.match(/^\{env:([^}]+)\}$/)?.[1]?.trim()
   const key = apiKey && !env ? apiKey : undefined
@@ -153,11 +161,12 @@ export function validateCustomProvider(input: ValidateArgs) {
       name,
       key,
       config: {
-        npm: OPENAI_COMPATIBLE,
+        npm: route === "responses" ? OPENAI_NATIVE : OPENAI_COMPATIBLE,
         name,
         ...(env ? { env: [env] } : {}),
         options: {
           baseURL,
+          route,
           ...(Object.keys(headerConfig).length ? { headers: headerConfig } : {}),
         },
         models: modelConfig,

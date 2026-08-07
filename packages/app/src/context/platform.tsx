@@ -3,6 +3,7 @@ import type { AsyncStorage, SyncStorage } from "@solid-primitives/storage"
 import type { Accessor } from "solid-js"
 import type { DesktopMenuAction } from "../desktop-menu"
 import type { WindowMaterial } from "../window-material"
+import type { PetCharacterInfo, PetConfig } from "../pet"
 import { ServerConnection } from "./server"
 import type { WslServersPlatform } from "../wsl/types"
 import type { UpdaterPlatform } from "../updater"
@@ -110,6 +111,18 @@ type PlatformBase = {
 
   /** Switch the native window's background material between acrylic and an opaque default (Windows desktop only) */
   setWindowMaterial?(material: WindowMaterial): Promise<void> | void
+
+  /** Desktop pet companion controls (desktop only) */
+  pet?: {
+    /** Read the persisted pet configuration. */
+    getConfig(): Promise<PetConfig>
+    /** Enable or disable the desktop pet window. */
+    setEnabled(enabled: boolean): Promise<void>
+    /** Change the active pet character. */
+    setCharacter(character: string): Promise<void>
+    /** List the pet characters bundled with the app. */
+    list(): Promise<PetCharacterInfo[]>
+  }
 
   /** Run a desktop-only menu action from the app chrome */
   runDesktopMenuAction?(action: DesktopMenuAction): Promise<void> | void

@@ -8,6 +8,7 @@ import type { WindowMaterial } from "@opencode-ai/app"
 import { parseDesktopNativeBundle, type DesktopNativeBundle } from "@opencode-ai/app/i18n/desktop-native"
 
 import type { FatalRendererError, ServerReadyData, TitlebarTheme } from "../preload/types"
+import type { PetEvent } from "@opencode-ai/app"
 import { runDesktopMenuAction } from "./desktop-menu-actions"
 import { setForceFocus } from "./debug"
 import { assertAttachmentBudget, createPickedFileAuthorizations } from "./attachment-picker"
@@ -22,6 +23,20 @@ import {
   setTitlebar,
   updateTitlebar,
 } from "./windows"
+import {
+  getPetConfig,
+  listPetCharacters,
+  notifyPet,
+  petDragEnd,
+  petDragMove,
+  petDragStart,
+  petGetPosition,
+  petGetWorkArea,
+  petSetContentSize,
+  petSetPosition,
+  setPetCharacter,
+  setPetEnabled,
+} from "./pet"
 import type { UpdaterController } from "./updater-controller"
 import { createUpdaterSubscriptions } from "./updater-subscriptions"
 import { createDesktopDraftStore } from "./draft-store"
@@ -146,6 +161,27 @@ export function registerIpcHandlers(deps: Deps) {
     const store = getStore(name)
     return Object.keys(store.store).length
   })
+
+  // Desktop pet controls.
+  ipcMain.handle("pet-get-config", () => getPetConfig())
+  ipcMain.handle("pet-list", () => listPetCharacters())
+  ipcMain.handle("pet-set-enabled", (_event: IpcMainInvokeEvent, enabled: boolean) => setPetEnabled(enabled === true))
+  ipcMain.handle("pet-set-character", (_event: IpcMainInvokeEvent, character: string) => setPetCharacter(character))
+  ipcMain.handle("pet-drag-start", () => petDragStart())
+  ipcMain.handle("pet-drag-move", (_event: IpcMainInvokeEvent, screenX: number, screenY: number) =>
+    petDragMove(screenX, screenY),
+  )
+  ipcMain.handle("pet-drag-end", () => petDragEnd())
+  ipcMain.handle("pet-get-position", () => petGetPosition())
+  ipcMain.handle("pet-set-position", (_event: IpcMainInvokeEvent, x: number, y: number) => petSetPosition(x, y))
+  ipcMain.handle("pet-get-work-area", () => petGetWorkArea())
+  ipcMain.handle(
+    "pet-set-content-size",
+    (_event: IpcMainInvokeEvent, frameWidth: number, frameHeight: number) =>
+      petSetContentSize(frameWidth, frameHeight),
+  )
+  ipcMain.handle("pet-notify", (_event: IpcMainInvokeEvent, event: PetEvent) => notifyPet(event))
+
   ipcMain.handle("draft-get", (_event, key: string) => drafts.get(key))
   ipcMain.handle("draft-set", (_event, key: string, value: string) => drafts.set(key, value))
   ipcMain.handle("draft-delete", (_event, key: string) => drafts.set(key, null))

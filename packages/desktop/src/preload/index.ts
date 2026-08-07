@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron"
 import type { ElectronAPI, WslServersEvent } from "./types"
+import type { PetEvent } from "@opencode-ai/app"
 import type { UpdaterState } from "@opencode-ai/app/updater"
 
 const updaterCallbacks = new Set<(state: UpdaterState) => void>()
@@ -136,6 +137,24 @@ const api: ElectronAPI = {
   runDesktopMenuAction: (action) => ipcRenderer.invoke("run-desktop-menu-action", action),
   setBackgroundColor: (color: string) => ipcRenderer.invoke("set-background-color", color),
   setWindowMaterial: (material) => ipcRenderer.invoke("set-window-material", material),
+  petGetConfig: () => ipcRenderer.invoke("pet-get-config"),
+  petList: () => ipcRenderer.invoke("pet-list"),
+  petSetEnabled: (enabled) => ipcRenderer.invoke("pet-set-enabled", enabled),
+  petSetCharacter: (character) => ipcRenderer.invoke("pet-set-character", character),
+  petDragStart: () => ipcRenderer.invoke("pet-drag-start"),
+  petDragMove: (screenX, screenY) => ipcRenderer.invoke("pet-drag-move", screenX, screenY),
+  petDragEnd: () => ipcRenderer.invoke("pet-drag-end"),
+  petGetPosition: () => ipcRenderer.invoke("pet-get-position"),
+  petSetPosition: (x, y) => ipcRenderer.invoke("pet-set-position", x, y),
+  petGetWorkArea: () => ipcRenderer.invoke("pet-get-work-area"),
+  petSetContentSize: (frameWidth, frameHeight) =>
+    ipcRenderer.invoke("pet-set-content-size", frameWidth, frameHeight),
+  petNotify: (event) => ipcRenderer.invoke("pet-notify", event),
+  petOnEvent: (cb) => {
+    const handler = (_: unknown, event: PetEvent) => cb(event)
+    ipcRenderer.on("pet-event", handler)
+    return () => ipcRenderer.removeListener("pet-event", handler)
+  },
   exportDebugLogs: () => ipcRenderer.invoke("export-debug-logs"),
   setForceFocus: (enabled) => ipcRenderer.invoke("set-force-focus", enabled),
   recordFatalRendererError: (error) => ipcRenderer.invoke("record-fatal-renderer-error", error),

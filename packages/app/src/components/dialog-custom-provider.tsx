@@ -5,6 +5,7 @@ import { IconButton } from "@opencode-ai/ui/icon-button"
 import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
 import { Popover as Kobalte } from "@kobalte/core/popover"
 import { useMutation } from "@tanstack/solid-query"
+import { Select } from "@opencode-ai/ui/select"
 import { TextField } from "@opencode-ai/ui/text-field"
 import { showToast } from "@/utils/toast"
 import { batch, createSignal, type ComponentProps, For, Show, type JSX } from "solid-js"
@@ -173,10 +174,17 @@ export function CustomProviderForm(props: { autofocus?: boolean } = {}) {
     name: "",
     baseURL: "",
     apiKey: "",
+    route: "chat",
     models: [modelRow()],
     headers: [headerRow()],
     err: {},
   })
+
+  // API 路由选择:Chat Completions → @ai-sdk/openai-compatible;Responses → @ai-sdk/openai
+  const routeOptions = [
+    { id: "chat" as const, name: language.t("provider.custom.route.chat") },
+    { id: "responses" as const, name: language.t("provider.custom.route.responses") },
+  ]
 
   const addModel = () => {
     setForm(
@@ -216,9 +224,9 @@ export function CustomProviderForm(props: { autofocus?: boolean } = {}) {
     )
   }
 
-  const setField = (key: "providerID" | "name" | "baseURL" | "apiKey", value: string) => {
+  const setField = (key: "providerID" | "name" | "baseURL" | "apiKey" | "route", value: string) => {
     setForm(key, value)
-    if (key === "apiKey") return
+    if (key === "apiKey" || key === "route") return
     setForm("err", key, undefined)
   }
 
@@ -340,6 +348,19 @@ export function CustomProviderForm(props: { autofocus?: boolean } = {}) {
             validationState={form.err.baseURL ? "invalid" : undefined}
             error={form.err.baseURL}
           />
+          <div class="flex flex-col gap-1.5">
+            <label class="text-12-medium text-text-weak">{language.t("provider.custom.route.label")}</label>
+            <Select
+              class="w-full"
+              options={routeOptions}
+              current={routeOptions.find((o) => o.id === form.route)}
+              value={(o) => o.id}
+              label={(o) => o.name}
+              onSelect={(o) => {
+                if (o) setField("route", o.id)
+              }}
+            />
+          </div>
           <TextField
             label={language.t("provider.custom.field.apiKey.label")}
             placeholder={language.t("provider.custom.field.apiKey.placeholder")}

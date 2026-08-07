@@ -6,7 +6,7 @@
 
 完整逐字节复刻自 `demo/cursor-byok-main/prompt`（Cursor BYOK 客户端）。
 
-> 已清理：品牌名 `Cursor` → `CyreneCode`；移除 `debug/prompt.md` 中写死的个人路径 `/Users/leokun/.cursor/...` 与两个个人 MCP server（`cursor-ide-browser`、`user-context7`）；移除 `tools.json` 中的 `.cursor-local-assistant-v2` ignore 项；`plan/prompt.md` 的 `.cursor` 检索改为通用表述。
+> 已清理：品牌名 `Cursor` → `NekoCode`；移除 `debug/prompt.md` 中写死的个人路径 `/Users/leokun/.cursor/...` 与两个个人 MCP server（`cursor-ide-browser`、`user-context7`）；移除 `tools.json` 中的 `.cursor-local-assistant-v2` ignore 项；`plan/prompt.md` 的 `.cursor` 检索改为通用表述。
 
 ## 目录结构
 

@@ -92,6 +92,7 @@ const SettingsProvidersContent: Component<{ onBack?: () => void }> = (props) => 
   const isConfigCustom = (providerID: string) => {
     const provider = serverSync().data.config.provider?.[providerID]
     if (!provider) return false
+    if (provider.options && "route" in provider.options) return true
     if (provider.npm !== "@ai-sdk/openai-compatible") return false
     if (!provider.models || Object.keys(provider.models).length === 0) return false
     return true

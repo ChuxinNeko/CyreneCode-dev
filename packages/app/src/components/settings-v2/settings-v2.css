@@ -188,7 +188,7 @@
 }
 
 /* 全屏设置页面：左侧 tab 列表宽度对齐侧边栏 (w-[22%] min-w-[224px] max-w-80)，
-   让顶部"返回主窗口"按钮落在原 "CyreneCode" 标题位置。
+   让顶部"返回主窗口"按钮落在原 "NekoCode" 标题位置。
    判别符用 data-settings-page（Kobalte 会把它作为 data-* 原样透传到根节点，
    规避 classList 透传不可靠的问题）；半透明背景是"非 layer + 更高 specificity"，
    保证压过下面 .settings:177 那条非 layer 的不透明 bg-layer-01 兜底，

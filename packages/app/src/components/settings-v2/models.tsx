@@ -36,10 +36,11 @@ export const SettingsModelsV2: Component<{ directory?: Accessor<string | undefin
     createStore({ collapsed: {} as Record<string, boolean> }),
   )
 
-  // 自定义提供商（OpenAI 兼容）的模型定义在 config 中，可追加 / 断开。
+  // 自定义提供商（OpenAI 兼容 / Responses）的模型定义在 config 中，可追加 / 断开。
   const isConfigCustom = (providerID: string) => {
     const provider = serverSync().data.config.provider?.[providerID]
     if (!provider) return false
+    if (provider.options && "route" in provider.options) return true
     if (provider.npm !== "@ai-sdk/openai-compatible") return false
     if (!provider.models || Object.keys(provider.models).length === 0) return false
     return true

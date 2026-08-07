@@ -99,6 +99,7 @@ const require = __cjs_mod__.createRequire(import.meta.url);
       rollupOptions: {
         input: {
           main: "src/renderer/index.html",
+          pet: "src/renderer/pet.html",
         },
       },
     },

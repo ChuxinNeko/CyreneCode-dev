@@ -1,5 +1,5 @@
 import type { DesktopMenuAction } from "@opencode-ai/app/desktop-menu"
-import type { WindowMaterial } from "@opencode-ai/app"
+import type { WindowMaterial, PetCharacterInfo, PetConfig, PetEvent, PetWorkArea } from "@opencode-ai/app"
 import type { WslServersPlatform } from "@opencode-ai/app/wsl/types"
 import type { UpdaterState } from "@opencode-ai/app/updater"
 import type { DesktopNativeBundle } from "@opencode-ai/app/i18n/desktop-native"
@@ -113,6 +113,22 @@ export type ElectronAPI = {
   runDesktopMenuAction: (action: DesktopMenuAction) => Promise<void>
   setBackgroundColor: (color: string) => Promise<void>
   setWindowMaterial: (material: WindowMaterial) => Promise<void>
+  petGetConfig: () => Promise<PetConfig>
+  petList: () => Promise<PetCharacterInfo[]>
+  petSetEnabled: (enabled: boolean) => Promise<void>
+  petSetCharacter: (character: string) => Promise<void>
+  petDragStart: () => Promise<void>
+  petDragMove: (screenX: number, screenY: number) => Promise<void>
+  petDragEnd: () => Promise<void>
+  petGetPosition: () => Promise<[number, number] | null>
+  petSetPosition: (x: number, y: number) => Promise<void>
+  petGetWorkArea: () => Promise<PetWorkArea>
+  /** Resize the pet overlay to fit a non-standard auto-detected cell size. */
+  petSetContentSize: (frameWidth: number, frameHeight: number) => Promise<void>
+  /** Push a context event (think/run/success/error/review/idle) to the pet. */
+  petNotify: (event: PetEvent) => Promise<void>
+  /** Subscribe to context events forwarded from the main process. */
+  petOnEvent: (cb: (event: PetEvent) => void) => () => void
   exportDebugLogs: () => Promise<string>
   setForceFocus: (enabled: boolean) => Promise<void>
   recordFatalRendererError: (error: FatalRendererError) => Promise<void>

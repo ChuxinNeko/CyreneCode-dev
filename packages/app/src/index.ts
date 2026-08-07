@@ -13,6 +13,17 @@ export { useWslServers } from "./wsl/context"
 export { type DisplayBackend, type FatalRendererErrorLog, type Platform, PlatformProvider } from "./context/platform"
 export { type WindowMaterial } from "./window-material"
 export {
+  type PetAnimation,
+  type PetAnimationName,
+  type PetCharacterInfo,
+  type PetConfig,
+  type PetEvent,
+  type PetEventName,
+  type PetFrameLayout,
+  type PetManifest,
+  type PetWorkArea,
+} from "./pet"
+export {
   applyWindowMaterialAttribute,
   readWindowMaterial,
   writeWindowMaterial,
