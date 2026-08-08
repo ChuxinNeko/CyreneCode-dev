@@ -73,6 +73,22 @@ export const ModelSwitched = Event.define({
 })
 export type ModelSwitched = typeof ModelSwitched.Type
 
+export const ModelRouted = Event.define({
+  type: "session.next.model.routed",
+  ...options,
+  schema: {
+    ...Base,
+    messageID: SessionMessage.ID.pipe(optional),
+    tier: Schema.String,
+    baseline: Model.Ref,
+    routed: Model.Ref.pipe(optional),
+    mode: Schema.Literals(["observe", "full"]),
+    applied: Schema.Boolean,
+    reasons: Schema.String.pipe(Schema.Array),
+  },
+})
+export type ModelRouted = typeof ModelRouted.Type
+
 export const Moved = Event.define({
   type: "session.next.moved",
   ...options,

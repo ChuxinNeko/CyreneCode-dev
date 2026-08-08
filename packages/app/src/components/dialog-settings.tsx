@@ -9,6 +9,7 @@ import { SettingsGeneral } from "./settings-general"
 import { SettingsKeybinds } from "./settings-keybinds"
 import { SettingsProviders } from "./settings-providers"
 import { SettingsModels } from "./settings-models"
+import { SettingsRouter } from "./settings-router"
 import { SettingsServers } from "./settings-servers"
 
 export const DialogSettings: Component<{ defaultValue?: string }> = (props) => {
@@ -63,6 +64,10 @@ export const DialogSettings: Component<{ defaultValue?: string }> = (props) => {
                       <Icon name="models" />
                       {language.t("settings.models.title")}
                     </Tabs.Trigger>
+                    <Tabs.Trigger value="router">
+                      <Icon name="providers" />
+                      {language.t("settings.router.title")}
+                    </Tabs.Trigger>
                   </div>
                 </div>
               </div>
@@ -87,6 +92,9 @@ export const DialogSettings: Component<{ defaultValue?: string }> = (props) => {
         </Tabs.Content>
         <Tabs.Content value="models" class="no-scrollbar">
           <SettingsModels />
+        </Tabs.Content>
+        <Tabs.Content value="router" class="no-scrollbar">
+          <SettingsRouter />
         </Tabs.Content>
       </Tabs>
     </Dialog>

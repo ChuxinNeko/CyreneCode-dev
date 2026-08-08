@@ -9,6 +9,7 @@ import { SettingsAppearanceV2 } from "./appearance"
 import { SettingsPetV2 } from "./pet"
 import { SettingsKeybinds } from "../settings-keybinds"
 import { SettingsModelsV2 } from "./models"
+import { SettingsRouter } from "../settings-router"
 import "./settings-v2.css"
 import { SettingsServersV2 } from "./servers"
 import { useLayout } from "@/context/layout"
@@ -84,6 +85,10 @@ export const DialogSettings: Component<{
                       <Icon name="models" />
                       {language.t("settings.models.title")}
                     </TabsV2.Trigger>
+                    <TabsV2.Trigger value="router">
+                      <Icon name="providers" />
+                      {language.t("settings.router.title")}
+                    </TabsV2.Trigger>
                   </div>
                 </div>
               </div>
@@ -111,6 +116,9 @@ export const DialogSettings: Component<{
         </TabsV2.Content>
         <TabsV2.Content value="models" class="settings-v2-panel">
           <SettingsModelsV2 directory={directory} />
+        </TabsV2.Content>
+        <TabsV2.Content value="router" class="settings-v2-panel">
+          <SettingsRouter />
         </TabsV2.Content>
       </TabsV2>
     </Dialog>
@@ -201,6 +209,10 @@ export const SettingsPage: Component<{
                       <Icon name="models" />
                       {language.t("settings.models.title")}
                     </TabsV2.Trigger>
+                    <TabsV2.Trigger value="router">
+                      <Icon name="providers" />
+                      {language.t("settings.router.title")}
+                    </TabsV2.Trigger>
                   </div>
                 </div>
               </div>
@@ -228,6 +240,9 @@ export const SettingsPage: Component<{
         </TabsV2.Content>
         <TabsV2.Content value="models" class="settings-v2-panel">
           <SettingsModelsV2 directory={directory} />
+        </TabsV2.Content>
+        <TabsV2.Content value="router" class="settings-v2-panel">
+          <SettingsRouter />
         </TabsV2.Content>
       </TabsV2>
     </div>

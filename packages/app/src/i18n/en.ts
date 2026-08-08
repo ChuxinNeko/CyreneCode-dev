@@ -1111,6 +1111,26 @@ export const dict = {
   "settings.mcp.title": "MCP",
   "settings.mcp.description": "MCP settings will be configurable here.",
 
+  "settings.router.title": "Intelligent Routing",
+  "settings.router.description":
+    "Intelligent model routing picks a tier (S/M/L/XL) per turn. When disabled, every session uses its chosen model directly.",
+  "settings.router.enable.title": "Enable routing",
+  "settings.router.enable.description": "Route each turn to a model tier based on the request. Disabled keeps the single-model behavior.",
+  "settings.router.mode.title": "Mode",
+  "settings.router.mode.description": "observe records the would-be route and keeps your model; full applies the routed model.",
+  "settings.router.mode.observe": "Observe (record only)",
+  "settings.router.mode.full": "Full (apply routing)",
+  "settings.router.tier.title": "Tiers",
+  "settings.router.tier.description": "'provider/model' for each tier. Leave blank to auto-fallback (S = cheap model, M = your default).",
+  "settings.router.budget.title": "Budget",
+  "settings.router.budget.limit.description": "Optional per-session USD ceiling. When hit, routing warns or caps to the cheap tier.",
+  "settings.router.budget.action.description": "warn: keep routing but log the overage. cap: force the cheap tier.",
+  "settings.router.budget.action.warn": "Warn",
+  "settings.router.budget.action.cap": "Cap to cheap tier",
+
+  "model.router.label": "Intelligent Routing",
+  "model.router.selecting": "Routing…",
+
   "settings.permissions.title": "Permissions",
   "settings.permissions.description": "Control what tools the server can use by default.",
   "settings.permissions.section.tools": "Tools",

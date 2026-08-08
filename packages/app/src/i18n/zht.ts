@@ -1061,6 +1061,26 @@ export const dict = {
   "settings.mcp.title": "MCP",
   "settings.mcp.description": "MCP 設定將在此處可設定。",
 
+  "settings.router.title": "智慧路由",
+  "settings.router.description":
+    "智能模型路由會根據每輪請求在 S/M/L/XL 檔位中選擇模型。關閉時，每個工作階段直接使用其選定模型。",
+  "settings.router.enable.title": "啟用路由",
+  "settings.router.enable.description": "根據請求為每輪路由到對應模型檔位。關閉保持單模型行為。",
+  "settings.router.mode.title": "模式",
+  "settings.router.mode.description": "observe 僅記錄本應路由到的檔位並保持你的模型；full 套用路由選擇的模型。",
+  "settings.router.mode.observe": "觀察（僅記錄）",
+  "settings.router.mode.full": "完整（套用路由）",
+  "settings.router.tier.title": "檔位",
+  "settings.router.tier.description": "每個檔位的 “provider/model”。留空自動回退（S = 便宜模型，M = 你的預設模型）。",
+  "settings.router.budget.title": "預算",
+  "settings.router.budget.limit.description": "可選的每工作階段美元上限。達到後路由會告警或強制降到便宜檔。",
+  "settings.router.budget.action.description": "warn：繼續路由但記錄超支。cap：強制使用便宜檔。",
+  "settings.router.budget.action.warn": "告警",
+  "settings.router.budget.action.cap": "降至便宜檔",
+
+  "model.router.label": "智慧路由",
+  "model.router.selecting": "智慧路由選擇中…",
+
   "settings.permissions.title": "權限",
   "settings.permissions.description": "控制伺服器預設可以使用哪些工具。",
   "settings.permissions.section.tools": "工具",

@@ -21551,6 +21551,46 @@
               }
             },
             "additionalProperties": false
+          },
+          "router": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "mode": {
+                "type": "string",
+                "enum": ["observe", "full"]
+              },
+              "tiers": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "budget": {
+                "type": "object",
+                "properties": {
+                  "limitUsd": {
+                    "type": "number"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": ["warn", "cap"]
+                  }
+                },
+                "additionalProperties": false
+              },
+              "depthFloor": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "depthCap": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              }
+            },
+            "additionalProperties": false
           }
         },
         "additionalProperties": false

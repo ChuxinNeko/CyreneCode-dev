@@ -4,6 +4,7 @@ import { Schema } from "effect"
 import { NonNegativeInt, PositiveInt, type DeepMutable } from "../../schema"
 import { ConfigExperimental } from "../../config/experimental"
 import { ConfigReference } from "../../config/reference"
+import { ConfigRouter } from "../../config/router"
 import { ConfigAgentV1 } from "./agent"
 import { ConfigAttachmentV1 } from "./attachment"
 import { ConfigCommandV1 } from "./command"
@@ -166,6 +167,9 @@ export const Info = Schema.Struct({
       }),
     }),
   ),
+  router: Schema.optional(ConfigRouter.Info).annotate({
+    description: "Intelligent model routing: rule-based tier selection per turn, with error fallback and budget",
+  }),
   experimental: Schema.optional(
     Schema.Struct({
       disable_paste_summary: Schema.optional(Schema.Boolean),

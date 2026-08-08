@@ -18,6 +18,8 @@ import { ModelV2 } from "../../model"
 import { PermissionV2 } from "../../permission"
 import { ProviderV2 } from "../../provider"
 import { QuestionV2 } from "../../question"
+import { isRetryableError } from "../../router/fallback"
+import { ModelRouter } from "../../router/service"
 import { SystemContext } from "../../system-context/index"
 import { SystemContextRegistry } from "../../system-context/registry"
 import { SkillGuidance } from "../../skill/guidance"
@@ -39,6 +41,25 @@ import { MAX_STEPS_PROMPT } from "./max-steps"
 import { Snapshot } from "../../snapshot"
 import { makeLocationNode } from "../../effect/app-node"
 import { llmClient } from "../../effect/app-node-platform"
+
+// Routing feature helpers: pull the current user text + turn depth out of the
+// projected message history, and turn a resolved LLM model into a Model.Ref.
+const lastUserText = (messages: ReadonlyArray<{ readonly type: string; readonly text?: string }>): string => {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]
+    if (message && message.type === "user" && typeof message.text === "string" && message.text.length > 0)
+      return message.text
+  }
+  return ""
+}
+
+const countUserTurns = (messages: ReadonlyArray<{ readonly type: string }>): number =>
+  messages.reduce((count, message) => (message.type === "user" ? count + 1 : count), 0)
+
+const modelRefOf = (model: { readonly id: string; readonly provider: string }): ModelV2.Ref => ({
+  providerID: ProviderV2.ID.make(model.provider),
+  id: ModelV2.ID.make(model.id),
+})
 
 /**
  * Runs one durable coding-agent Session until it settles.
@@ -98,6 +119,7 @@ const layer = Layer.effect(
     const agents = yield* AgentV2.Service
     const tools = yield* ToolRegistry.Service
     const models = yield* SessionRunnerModel.Service
+    const router = yield* ModelRouter.Service
     const store = yield* SessionStore.Service
     const location = yield* Location.Service
     const systemContext = yield* SystemContextRegistry.Service
@@ -154,6 +176,8 @@ const layer = Layer.effect(
       | { readonly _tag: "ContinueAfterCompaction"; readonly step: number }
       // Overflow compaction completed; rebuild once through the path without overflow recovery.
       | { readonly _tag: "ContinueAfterOverflowCompaction"; readonly step: number }
+      // A routed model failed retryably; re-run this provider turn on the baseline model.
+      | { readonly _tag: "RetryWithBaseline"; readonly step: number }
 
     class TurnTransitionError extends Error {
       constructor(readonly transition: TurnTransition) {
@@ -164,6 +188,7 @@ const layer = Layer.effect(
     const continueAfterCompaction = (step: number) => new TurnTransitionError({ _tag: "ContinueAfterCompaction", step })
     const continueAfterOverflowCompaction = (step: number) =>
       new TurnTransitionError({ _tag: "ContinueAfterOverflowCompaction", step })
+    const retryWithBaseline = (step: number) => new TurnTransitionError({ _tag: "RetryWithBaseline", step })
 
     const loadSystemContext = (agent: AgentV2.Selection) =>
       Effect.all([systemContext.load(), skillGuidance.load(agent), referenceGuidance.load()], {
@@ -174,6 +199,7 @@ const layer = Layer.effect(
       sessionID: SessionSchema.ID,
       promotion: SessionInput.Delivery | undefined,
       step: number,
+      retryBaseline = false,
       recoverOverflow?: typeof compaction.compactAfterOverflow,
     ) {
       const session = yield* getSession(sessionID)
@@ -196,9 +222,37 @@ const layer = Layer.effect(
       }
       const system =
         initialized ?? (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent), session.id))
-      const model = yield* models.resolve(session)
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
+      const baseline = yield* models.resolve(session)
+
+      // --- Intelligent routing (additive). Disabled / observe / retryBaseline
+      // leave the single-model path untouched; full mode may swap the model.
+      let model = baseline
+      let routing: ModelRouter.RoutingDecision | undefined
+      const routerConfig = Config.latest(yield* config.entries(), "router")
+      if (!retryBaseline && routerConfig?.enabled) {
+        routing = yield* router.route({
+          session,
+          baseline: modelRefOf(baseline),
+          text: lastUserText(context),
+          turnIndex: countUserTurns(context),
+        })
+        if (routing.applied && routing.routedModel) model = routing.routedModel
+        if (routing.active) {
+          yield* events.publish(SessionEvent.ModelRouted, {
+            sessionID: session.id,
+            timestamp: yield* DateTime.now,
+            tier: routing.tier,
+            baseline: routing.baselineRef,
+            ...(routing.routedRef ? { routed: routing.routedRef } : {}),
+            mode: routing.mode,
+            applied: routing.applied,
+            reasons: [...routing.reasons],
+          })
+        }
+      }
+
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
       const toolMaterialization = isLastStep ? undefined : yield* tools.materialize(agent.info?.permissions)
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
@@ -289,6 +343,21 @@ const layer = Layer.effect(
           if (overflowFailure) yield* publish(overflowFailure)
           const llmFailure = failure instanceof LLMError ? failure : undefined
           if (llmFailure && !publisher.hasProviderError()) {
+            // Cross-model fallback: a routed model that failed retryably before
+            // emitting any assistant text or tool work is re-attempted once on
+            // the baseline single-model path (routing is suppressed for that
+            // attempt). Everything else keeps today's behavior.
+            if (
+              routing?.applied &&
+              isRetryableError(llmFailure) &&
+              !publisher.hasAssistantStarted() &&
+              !needsContinuation
+            ) {
+              yield* withPublication(
+                publisher.failUnsettledTools("Routed model failed; re-attempting on the baseline model", true),
+              )
+              return yield* Effect.die(retryWithBaseline(currentStep))
+            }
             yield* withPublication(publisher.failUnsettledTools("Provider did not return a tool result", true))
             yield* withPublication(publisher.failAssistant(llmFailure.reason.message))
           }
@@ -350,31 +419,42 @@ const layer = Layer.effect(
       sessionID: SessionSchema.ID,
       promotion: SessionInput.Delivery | undefined,
       step: number,
+      retryBaseline?: boolean,
     ) => Effect.Effect<{ readonly needsContinuation: boolean; readonly step: number }, RunError>
 
-    const runAfterOverflowCompaction: RunTurn = Effect.fnUntraced(function* (sessionID, promotion, step) {
-      return yield* runTurnAttempt(sessionID, promotion, step).pipe(
+    const runAfterOverflowCompaction: RunTurn = Effect.fnUntraced(function* (sessionID, promotion, step, retryBaseline = false) {
+      return yield* runTurnAttempt(sessionID, promotion, step, retryBaseline).pipe(
         Effect.catchDefect(
           Effect.fnUntraced(function* (defect) {
             if (!(defect instanceof TurnTransitionError)) return yield* Effect.die(defect)
             if (defect.transition._tag === "ContinueAfterOverflowCompaction")
               return yield* Effect.die("Post-compaction provider attempt cannot recover another overflow")
+            if (defect.transition._tag === "RetryWithBaseline")
+              return yield* runAfterOverflowCompaction(sessionID, undefined, defect.transition.step, true)
             yield* Effect.yieldNow
-            return yield* runAfterOverflowCompaction(sessionID, undefined, defect.transition.step)
+            return yield* runAfterOverflowCompaction(sessionID, undefined, defect.transition.step, retryBaseline)
           }),
         ),
       )
     })
 
-    const runTurn: RunTurn = Effect.fnUntraced(function* (sessionID, promotion, step) {
-      return yield* runTurnAttempt(sessionID, promotion, step, compaction.compactAfterOverflow).pipe(
+    const runTurn: RunTurn = Effect.fnUntraced(function* (sessionID, promotion, step, retryBaseline = false) {
+      return yield* runTurnAttempt(
+        sessionID,
+        promotion,
+        step,
+        retryBaseline,
+        compaction.compactAfterOverflow,
+      ).pipe(
         Effect.catchDefect(
           Effect.fnUntraced(function* (defect) {
             if (!(defect instanceof TurnTransitionError)) return yield* Effect.die(defect)
             yield* Effect.yieldNow
             if (defect.transition._tag === "ContinueAfterOverflowCompaction")
-              return yield* runAfterOverflowCompaction(sessionID, undefined, defect.transition.step)
-            return yield* runTurn(sessionID, undefined, defect.transition.step)
+              return yield* runAfterOverflowCompaction(sessionID, undefined, defect.transition.step, retryBaseline)
+            if (defect.transition._tag === "RetryWithBaseline")
+              return yield* runTurn(sessionID, undefined, defect.transition.step, true)
+            return yield* runTurn(sessionID, undefined, defect.transition.step, retryBaseline)
           }),
         ),
       )
@@ -420,6 +500,7 @@ export const node = makeLocationNode({
     AgentV2.node,
     ToolRegistry.node,
     SessionRunnerModel.node,
+    ModelRouter.node,
     SessionStore.node,
     Location.node,
     SystemContextRegistry.node,

@@ -7,7 +7,7 @@ import { KeybindV2 } from "@opencode-ai/ui/v2/keybind-v2"
 import { MenuV2 } from "@opencode-ai/ui/v2/menu-v2"
 import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
 import type { ReferenceInfo } from "@opencode-ai/sdk/v2/client"
-import { createEffect, createMemo, on, Show } from "solid-js"
+import { createEffect, createMemo, For, on, Show } from "solid-js"
 import { ModelSelectorPopoverV2 } from "@/components/dialog-select-model"
 import { useSettingsDialog } from "@/components/settings-dialog"
 import type { PromptInputProps } from "@/components/prompt-input/contracts"
@@ -43,6 +43,7 @@ export type PromptInputV2ComposerProps = {
 export type PromptInputV2ControllerProps = Omit<PromptInputProps, "class" | "submission">
 export type PromptInputV2ComposerController = PromptInputV2Interaction & {
   readonly model: PromptInputProps["controls"]["model"]
+  readonly routerEnabled: boolean
 }
 
 export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
@@ -64,8 +65,17 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
             title={language.t("command.model.choose")}
             keybind={command.keybindParts("model.choose")}
             model={props.controller.model.selection}
-            providerID={props.controller.model.selection.current()?.provider?.id}
-            modelName={props.controller.model.selection.current()?.name ?? language.t("dialog.model.select.title")}
+            routerEnabled={props.controller.routerEnabled}
+            providerID={
+              props.controller.routerEnabled
+                ? undefined
+                : props.controller.model.selection.current()?.provider?.id
+            }
+            modelName={
+              props.controller.routerEnabled
+                ? language.t("model.router.label")
+                : (props.controller.model.selection.current()?.name ?? language.t("dialog.model.select.title"))
+            }
             onClose={props.controller.restoreFocus}
           />
         }
@@ -77,6 +87,7 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
 export function usePromptInputV2Controller(props: PromptInputV2ControllerProps): PromptInputV2ComposerController {
   const sdk = useSDK()
   const sync = useSync()
+  const routerEnabled = createMemo(() => sync().data.config.router?.enabled === true)
   const files = useFile()
   const layout = useLayout()
   const comments = useComments()
@@ -420,6 +431,7 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
     },
   })
   Object.defineProperty(controller, "model", { get: () => props.controls.model })
+  Object.defineProperty(controller, "routerEnabled", { get: () => routerEnabled() })
 
   command.register("prompt-input", () => [
     {
@@ -484,6 +496,7 @@ function PromptInputV2ModelControl(props: {
   title: string
   keybind: string[]
   model: PromptInputV2ComposerController["model"]["selection"]
+  routerEnabled?: boolean
   providerID?: string
   modelName: string
   onClose: () => void
@@ -531,56 +544,106 @@ function PromptInputV2ModelControl(props: {
         }
       >
         <Show
-          when={enabledModels().length > 0}
+          when={props.routerEnabled}
           fallback={
-            <MenuV2 modal={false} placement="top-start" gutter={6}>
-              <MenuV2.Trigger
-                as={(triggerProps) => (
+            <Show
+              when={enabledModels().length > 0}
+              fallback={
+                <MenuV2 modal={false} placement="top-start" gutter={6}>
+                  <MenuV2.Trigger
+                    as={(triggerProps) => (
+                      <ButtonV2
+                        {...triggerProps}
+                        data-action="prompt-model"
+                        data-control-type="popover"
+                        variant="ghost-muted"
+                        size="normal"
+                        class={buttonClass}
+                        classList={{ "animate-in fade-in": shouldAnimate() }}
+                        style={{ height: "28px" }}
+                      >
+                        {content()}
+                      </ButtonV2>
+                    )}
+                  />
+                  <MenuV2.Portal>
+                    <MenuV2.Content class="w-[284px] rounded-md border-0 bg-v2-background-bg-layer-01 p-1 shadow-[var(--v2-elevation-floating)] focus:outline-none">
+                      <MenuV2.Item onSelect={openProvidersSettings}>
+                        <Icon name="plus" size="small" />
+                        <span class="min-w-0 flex-1 truncate leading-5">
+                          {language.t("dialog.model.addProviderAndModel")}
+                        </span>
+                      </MenuV2.Item>
+                    </MenuV2.Content>
+                  </MenuV2.Portal>
+                </MenuV2>
+              }
+            >
+              <ModelSelectorPopoverV2
+                model={props.model}
+                trigger={(triggerProps) => (
                   <ButtonV2
                     {...triggerProps}
-                    data-action="prompt-model"
-                    data-control-type="popover"
                     variant="ghost-muted"
                     size="normal"
+                    style={{ height: "28px" }}
                     class={buttonClass}
                     classList={{ "animate-in fade-in": shouldAnimate() }}
-                    style={{ height: "28px" }}
+                    data-action="prompt-model"
+                    data-control-type="popover"
                   >
                     {content()}
                   </ButtonV2>
                 )}
+                onClose={props.onClose}
               />
-              <MenuV2.Portal>
-                <MenuV2.Content class="w-[284px] rounded-md border-0 bg-v2-background-bg-layer-01 p-1 shadow-[var(--v2-elevation-floating)] focus:outline-none">
-                  <MenuV2.Item onSelect={openProvidersSettings}>
-                    <Icon name="plus" size="small" />
-                    <span class="min-w-0 flex-1 truncate leading-5">
-                      {language.t("dialog.model.addProviderAndModel")}
-                    </span>
-                  </MenuV2.Item>
-                </MenuV2.Content>
-              </MenuV2.Portal>
-            </MenuV2>
+            </Show>
           }
         >
-          <ModelSelectorPopoverV2
-            model={props.model}
-            trigger={(triggerProps) => (
-              <ButtonV2
-                {...triggerProps}
-                variant="ghost-muted"
-                size="normal"
-                style={{ height: "28px" }}
-                class={buttonClass}
-                classList={{ "animate-in fade-in": shouldAnimate() }}
-                data-action="prompt-model"
-                data-control-type="popover"
-              >
-                {content()}
-              </ButtonV2>
-            )}
-            onClose={props.onClose}
-          />
+          {/* Router mode: the model is chosen per turn, so surface it as the
+              current selection with the model list available for an override. */}
+          <MenuV2 modal={false} placement="top-start" gutter={6}>
+            <MenuV2.Trigger
+              as={(triggerProps) => (
+                <ButtonV2
+                  {...triggerProps}
+                  data-action="prompt-model"
+                  data-control-type="popover"
+                  variant="ghost-muted"
+                  size="normal"
+                  class={buttonClass}
+                  classList={{ "animate-in fade-in": shouldAnimate() }}
+                  style={{ height: "28px" }}
+                >
+                  {content()}
+                </ButtonV2>
+              )}
+            />
+            <MenuV2.Portal>
+              <MenuV2.Content class="w-[284px] rounded-md border-0 bg-v2-background-bg-layer-01 p-1 shadow-[var(--v2-elevation-floating)] focus:outline-none">
+                <div class="flex items-center gap-2 px-2.5 py-1.5 text-12-medium text-text-weak">
+                  <Icon name="settings-gear" size="small" />
+                  <span class="min-w-0 flex-1 truncate leading-5">{language.t("model.router.label")}</span>
+                </div>
+                <MenuV2.Separator class="my-1" />
+                <For each={enabledModels()}>
+                  {(item) => (
+                    <MenuV2.Item
+                      data-option-key={`${item.provider.id}/${item.id}`}
+                      onSelect={() => {
+                        props.model.set({ modelID: item.id, providerID: item.provider.id }, { recent: true })
+                        props.onClose()
+                      }}
+                      class="flex items-center gap-2 px-2.5 py-1.5 text-12-regular text-text-strong"
+                    >
+                      <ProviderIcon id={item.provider.id} class="size-4 shrink-0" />
+                      <span class="min-w-0 flex-1 truncate leading-5">{item.name}</span>
+                    </MenuV2.Item>
+                  )}
+                </For>
+              </MenuV2.Content>
+            </MenuV2.Portal>
+          </MenuV2>
         </Show>
       </TooltipV2>
     </Show>

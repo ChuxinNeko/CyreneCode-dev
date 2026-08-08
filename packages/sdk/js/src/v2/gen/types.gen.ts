@@ -2027,6 +2027,22 @@ export type Config = {
     mcp_timeout?: number
     policies?: Array<ConfigV2ExperimentalPolicy>
   }
+  /**
+   * Intelligent model routing: rule-based tier selection per turn, with error fallback and budget.
+   */
+  router?: {
+    enabled?: boolean
+    mode?: "observe" | "full"
+    tiers?: {
+      [key: string]: string
+    }
+    budget?: {
+      limitUsd?: number
+      action?: "warn" | "cap"
+    }
+    depthFloor?: number
+    depthCap?: number
+  }
 }
 
 export type Model = {

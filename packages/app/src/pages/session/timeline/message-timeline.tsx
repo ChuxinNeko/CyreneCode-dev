@@ -45,6 +45,7 @@ import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
 import { TextField } from "@opencode-ai/ui/text-field"
 import { TextReveal } from "@opencode-ai/ui/text-reveal"
 import { TextShimmer } from "@opencode-ai/ui/text-shimmer"
+import { RouterSlotMachine } from "@/components/router-slot-machine"
 import type {
   AssistantMessage,
   Message as MessageType,
@@ -960,6 +961,27 @@ export function MessageTimeline(props: {
 
   const workingTurn = (userMessageID: string) => sessionStatus().type !== "idle" && activeMessageID() === userMessageID
 
+  // --- Intelligent routing: slot-machine model picker -----------------------
+  const routerEnabled = createMemo(() => sync().data.config.router?.enabled === true)
+  const displayModelName = (ref: string) => {
+    const slash = ref.indexOf("/")
+    if (slash < 0) return ref
+    const providerID = ref.slice(0, slash)
+    const modelID = ref.slice(slash + 1)
+    return sync().data.provider?.all.get(providerID)?.models[modelID]?.name ?? ref
+  }
+  const routerCandidates = createMemo(() => {
+    const tiers = sync().data.config.router?.tiers
+    if (!tiers) return []
+    return [...new Set(Object.values(tiers).map((ref) => displayModelName(ref)).filter(Boolean))]
+  })
+  const routerLandingFor = (userMessageID: string) => {
+    const messages = assistantMessagesByParent().get(userMessageID) ?? emptyAssistantMessages
+    const last = messages[messages.length - 1]
+    if (!last?.providerID || !last?.modelID) return undefined
+    return displayModelName(`${last.providerID}/${last.modelID}`)
+  }
+
   const turnDurationMs = (userMessageID: string) => {
     const message = messageByID().get(userMessageID)
     if (!message || message.role !== "user") return
@@ -1151,6 +1173,12 @@ export function MessageTimeline(props: {
         })
         return (
           <TimelineRowFrame row={userMessageRow}>
+            <Show when={routerEnabled() && workingTurn(userMessageRow().userMessageID)}>
+              <RouterSlotMachine
+                candidates={routerCandidates()}
+                landed={routerLandingFor(userMessageRow().userMessageID)}
+              />
+            </Show>
             <Show when={message()}>
               {(message) => (
                 <div data-slot="session-turn-message-container" class="w-full px-4 md:px-5">
